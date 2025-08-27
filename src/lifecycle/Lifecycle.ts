@@ -1,4 +1,3 @@
-import * as App from '@zaiusinc/app-sdk';
 import {
   Lifecycle as AppLifecycle,
   AuthorizationGrantResult,
@@ -8,22 +7,23 @@ import {
   Request,
   storage,
   SubmittedFormData,
-  functions
+  functions,
 } from '@zaiusinc/app-sdk';
-import { CMSAuthSection } from '../data/data';
-
 
 export class Lifecycle extends AppLifecycle {
   public async onInstall(): Promise<LifecycleResult> {
     try {
       logger.info('Performing Install');
-      // write the generated webhook to the swell settings form
-      const functionUrls = await App.functions.getEndpoints();
-      await App.storage.settings.put('instructions', {
-        opal_content_definitions_tool_url: `${functionUrls.opal_content_definitions_tool}/discovery`,
-        opal_content_management_tool_url: `${functionUrls.opal_content_management_tool}/discovery`
+      // Populate instruction URLs with function discovery endpoints
+      const endpoints = await functions.getEndpoints();
+      await storage.settings.put('instructions', {
+        opal_content_definitions_tool_url: endpoints.content_definitions
+          ? `${endpoints.content_definitions}/discovery`
+          : '',
+        opal_content_management_tool_url: endpoints.content_definitions_content_types
+          ? `${endpoints.content_definitions_content_types}/discovery`
+          : '',
       });
-
       return { success: true };
     } catch (error: any) {
       logger.error('Error during installation:', error);
@@ -38,49 +38,43 @@ export class Lifecycle extends AppLifecycle {
   public async onSettingsForm(
     section: string,
     action: string,
-    formData: SubmittedFormData
+    formData: SubmittedFormData,
   ): Promise<LifecycleSettingsResult> {
     const result = new LifecycleSettingsResult();
     try {
-      /*
-       * example of handling username/password auth section
-       */
-      if (section === 'auth' && action === 'authorize') {
-        await storage.settings.put<CMSAuthSection>(section, {...formData, integrated: true});
-        // validate the credentials here, e.g. by making an API call
-        const options = {method: 'GET', headers: {accept: 'application/json'}};
-        let success = false;
-        try {
-          const baseUrl = formData.cms_base_url;
-          const url = `${baseUrl}/api/episerver/v3.0/contenttypes?top=1&includeSystemTypes=false`;
-          const res = await fetch(url, options);
-          success = res.ok;
-        } catch (err) {
-          console.error(err);
-          success = false;
-        }
+      if (section === 'cms_api' && action === 'save_cms_api') {
+        await storage.settings.put('cms_api', formData);
 
-        if (success) {
-          result.addToast('success', 'Validation successful!');
-        } else {
-          result.addToast('warning', 'Your credentials were not accepted. Please check them and try again.');
+        const baseUrl = String((formData as any).base_url || '').replace(/\/$/, '');
+        const testUrl = `${baseUrl}/api/episerver/v3.0/contenttypes?top=1`;
+        const headers: Record<string, string> = { accept: 'application/json' };
+
+        let ok = false;
+        try {
+          const res = await fetch(testUrl, { method: 'GET', headers });
+          ok = res.ok;
+        } catch {
+          ok = false;
         }
-      } else {
-        result.addToast('warning', 'Unexpected action received.');
+        return ok
+          ? result.addToast('success', 'Validation successful!')
+          : result.addToast('warning', 'CMS endpoint did not respond OK. Check base URL.');
       }
 
+      // Default behavior: save the form data to the settings store
+      await storage.settings.put(section, formData);
       return result;
     } catch {
       return result.addToast(
         'danger',
-        'Sorry, an unexpected error occurred. Please try again in a moment.'
+        'Sorry, an unexpected error occurred. Please try again in a moment.',
       );
     }
   }
 
   public async onAuthorizationRequest(
     _section: string,
-    _formData: SubmittedFormData
+    _formData: SubmittedFormData,
   ): Promise<LifecycleSettingsResult> {
     // example: handling OAuth authorization request
     const result = new LifecycleSettingsResult();
@@ -108,86 +102,28 @@ export class Lifecycle extends AppLifecycle {
     return result.addToast('danger', 'Sorry, OAuth is not supported.');
   }
 
-  public async onAuthorizationGrant(
-    _request: Request
-  ): Promise<AuthorizationGrantResult> {
-
-    /* example: handling OAuth authorization grant
-
-    // make sure to add CLIENT_ID, CLIENT_SECRET, and DEVELOPER_TOKEN to your .env file
-    const CLIENT_ID = process.env.APP_ENV_CLIENT_ID || '';
-    const CLIENT_SECRET = process.env.APP_ENV_CLIENT_SECRET || '';
-
-    const result = new AuthorizationGrantResult('');
-    try {
-      await storage.settings.patch('auth', {
-        authorized: false
-      });
-      const request = {
-        method: 'POST',
-        body: JSON.stringify({
-          client_id: CLIENT_ID,
-          client_secret: CLIENT_SECRET,
-          grant_type: 'authorization_code',
-          redirect_uri: functions.getAuthorizationGrantUrl(),
-          code: _request.params.code as string
-        }),
-        headers: {
-          'Accept': 'application/json',
-          'Content-Type': 'application/json'
-        }
-      };
-
-      let token: Token | undefined;
-      const response = await fetch('https://oauth2.googleapis.com/token', request);
-      switch (response.status) {
-      case 200:
-        const rawToken = await response.json() as any;
-        token = {
-          value: rawToken.access_token,
-          refresh: rawToken.refresh_token,
-          exp: Date.now() + (rawToken.expires_in - 60) * 1000
-        };
-        await storage.secrets.put('token', token);
-        break;
-      case 401:
-        logger.error('Unauthorized, invalid credentials.');
-        break;
-      default:
-        logger.error('General server error', response.status, await response.text());
-        throw new Error('API Call Issue');
-      }
-      if (token) {
-        result.addToast('success', 'Successfully authorized!');
-        await storage.settings.patch('auth', {authorized: true});
-      }
-    } catch (e) {
-      logger.error(e);
-      return result.addToast('danger', 'Sorry, OAuth is not supported.');
-    }
-    */
-
-    return new AuthorizationGrantResult('').addToast(
-      'danger',
-      'Sorry, OAuth is not supported.'
-    );
+  public async onAuthorizationGrant(_request: Request): Promise<AuthorizationGrantResult> {
+    // TODO: if your application supports the OAuth flow, evaluate the inbound request and perform any necessary action
+    // to retrieve the access token, then forward the user to the next relevant settings form section:
+    // `new AuthorizationGrantResult('my_next_section')`
+    return new AuthorizationGrantResult('').addToast('danger', 'Sorry, OAuth is not supported.');
   }
 
   public async onUpgrade(_fromVersion: string): Promise<LifecycleResult> {
-    // TODO: any logic required when upgrading from a previous version of the app
-    // Note: `fromVersion` may not be the most recent version or could be a beta version
-    // write the generated webhook to the swell settings form
-    const functionUrls = await App.functions.getEndpoints();
-    await App.storage.settings.put('instructions', {
-      opal_content_definitions_tool_url: `${functionUrls.opal_content_definitions_tool}/discovery`,
-      opal_content_management_tool_url: `${functionUrls.opal_content_management_tool}/discovery`
+    // Refresh instruction URLs on upgrade
+    const endpoints = await functions.getEndpoints();
+    await storage.settings.put('instructions', {
+      opal_content_definitions_tool_url: endpoints.content_definitions
+        ? `${endpoints.content_definitions}/discovery`
+        : '',
+      opal_content_management_tool_url: endpoints.content_definitions_content_types
+        ? `${endpoints.content_definitions_content_types}/discovery`
+        : '',
     });
     return { success: true };
   }
 
-  public async onFinalizeUpgrade(
-    _fromVersion: string
-  ): Promise<LifecycleResult> {
+  public async onFinalizeUpgrade(_fromVersion: string): Promise<LifecycleResult> {
     // TODO: any logic required when finalizing an upgrade from a previous version
     // At this point, new webhook URLs have been created for any new functions in this version
     return { success: true };
