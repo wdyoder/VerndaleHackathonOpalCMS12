@@ -17,3 +17,6 @@ functions:
   opal_tool:
     entry_point: OpalToolFunction
     description: Opal tool function
+  language_branches_tool:
+    entry_point: LanguageBranchesFunction
+    description: Tools for listing and retrieving Optimizely CMS language branches
