@@ -3,8 +3,8 @@ import { storage } from '@zaiusinc/app-sdk';
 
 // constants
 const DISCOVERY_ENDPOINT = '/discovery';
-const GET_CONTENT_TYPES_ENDPOINT = '/api/episerver/v3.0/contenttypes';
-const GET_CONTENT_TYPE_BY_ID_ENDPOINT = '/api/episerver/v3.0/contenttypes/{id}';
+const GET_CONTENT_TYPES_ENDPOINT = '/getContentTypes';
+const GET_CONTENT_TYPE_BY_ID_ENDPOINT = '/getContentTypeById';
 
 // defines parameters interfaces (ContentTypes)
 // eslint-disable-next-line @typescript-eslint/no-empty-object-type, @typescript-eslint/no-empty-interface
@@ -29,22 +29,22 @@ interface Credentials {
 const discoveryPayload = {
   'functions': [
     {
-      'name': 'getContentTypes',
-      'description': 'List all content types in the system',
+      'name': 'verndale_get_content_types',
+      'description': 'List all of the content types that are found by the CMS content definitions API.',
       'parameters': [
       ],
       'endpoint': GET_CONTENT_TYPES_ENDPOINT,
       'http_method': 'GET'
     },
     {
-      'name': 'getContentTypeById',
-      'description': 'Get a content type by its ID',
+      'name': 'verndale_get_content_type_by_id',
+      'description': 'Get all the details about a specific content type by its ID using the CMS content definitions API.',  // am*** maybe include example of the response
       'parameters': [
         {
           'name': 'id',
           'type': 'string',
           'required': true,
-          'description': 'The ID of the content type to retrieve'
+          'description': 'The ID of the content type to retrieve from the CMS'
         }
       ],
       'endpoint': GET_CONTENT_TYPE_BY_ID_ENDPOINT,
@@ -72,7 +72,10 @@ export class OptiCMSContentDefinitionsContentTypesAPIToolFunction extends Functi
       const params = this.extractParameters() as GetContentTypesParameter;
       // am*** need to extract to a function
       const credentials = await storage.settings.get('auth').then((s) => s) as Credentials;
-      const response =  this.getContentTypes(params, credentials);
+      const response =  await this.getContentTypes(params, credentials);
+
+      logger.info("response from getContentTypes: ", response);
+
       return new Response(200, response);
     }
 
@@ -80,7 +83,10 @@ export class OptiCMSContentDefinitionsContentTypesAPIToolFunction extends Functi
       const params = this.extractParameters() as GetContentTypeByIdParameter;
       // am*** need to extract to a function
       const credentials = await storage.settings.get('auth').then((s) => s) as Credentials;
-      const response =  this.getContentTypeById(params, credentials);
+      const response =  await this.getContentTypeById(params, credentials);
+
+      logger.info("response from getContentTypeById: ", response);
+
       return new Response(200, response);
     }
 
@@ -111,6 +117,8 @@ export class OptiCMSContentDefinitionsContentTypesAPIToolFunction extends Functi
 
   private async getContentTypes(parameters: GetContentTypesParameter, credentials: Credentials) {
 
+    logger.info("calling get-content-types...");
+
     const options = {
       method: 'GET',
       headers: {
@@ -118,12 +126,17 @@ export class OptiCMSContentDefinitionsContentTypesAPIToolFunction extends Functi
       }
     };
 
-    return fetch(`${credentials.cms_base_url}${GET_CONTENT_TYPES_ENDPOINT}`, options)
-      .then((response) => response.json())  // am*** might need to manage non-200 responses
-      .then((data) => ({
-        output_value: data
-      }))
-      .catch((error) => {
+    return fetch(`${credentials.cms_base_url}/api/episerver/v3.0/contenttypes`, options)
+      .then(response => {
+        logger.info("response status: ", response.status);
+        return response.json(); 
+      })
+      .then(data => {
+        return {
+          output_value: data
+        };
+      })
+      .catch(error => {
         console.error('Error fetching data:', error);
         throw new Error('Failed to fetch content types');
       });
@@ -137,13 +150,15 @@ export class OptiCMSContentDefinitionsContentTypesAPIToolFunction extends Functi
         accept: 'application/json',
       }
     };
-
-    return fetch(`${credentials.cms_base_url}${GET_CONTENT_TYPE_BY_ID_ENDPOINT}/${parameters.id}`, options)
-      .then((response) => response.json())  // am*** might need to manage non-200 responses
-      .then((data) => ({
-        output_value: data
-      }))
-      .catch((error) => {
+   
+    return fetch(`${credentials.cms_base_url}/api/episerver/v3.0/contenttypes/{id}/${parameters.id}`, options)
+      .then(response => response.json())  // am*** might need to manage non-200 responses
+      .then(data => {
+        return {
+          output_value: data
+        };
+      })
+      .catch(error => {
         console.error('Error fetching data:', error);
         throw new Error('Failed to fetch content type by ID');
       });
