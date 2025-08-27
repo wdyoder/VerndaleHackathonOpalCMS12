@@ -3,8 +3,8 @@ import { storage } from '@zaiusinc/app-sdk';
 
 // constants
 const DISCOVERY_ENDPOINT = '/discovery';
-const GET_CONTENT_TYPES_ENDPOINT = '/api/episerver/v3.0/contenttypes';
-const GET_CONTENT_TYPE_BY_ID_ENDPOINT = '/api/episerver/v3.0/contenttypes/{id}';
+const GET_CONTENT_TYPES_ENDPOINT = '/getContentTypes';
+const GET_CONTENT_TYPE_BY_ID_ENDPOINT = '/getContentTypeById';
 
 // defines parameters interfaces (ContentTypes)
 interface GetContentTypesParameter {
@@ -114,7 +114,7 @@ export class OptiCMSContentDefinitionsContentTypesAPIToolFunction extends Functi
       }
     };
 
-    return fetch(`${credentials.cms_base_url}${GET_CONTENT_TYPES_ENDPOINT}`, options)
+    return fetch(`${credentials.cms_base_url}/api/episerver/v3.0/contenttypes`, options)
       .then(response => response.json())  // am*** might need to manage non-200 responses
       .then(data => {
         return {
@@ -136,7 +136,7 @@ export class OptiCMSContentDefinitionsContentTypesAPIToolFunction extends Functi
       }
     };
    
-    return fetch(`${credentials.cms_base_url}${GET_CONTENT_TYPE_BY_ID_ENDPOINT}/${parameters.id}`, options)
+    return fetch(`${credentials.cms_base_url}/api/episerver/v3.0/contenttypes/{id}/${parameters.id}`, options)
       .then(response => response.json())  // am*** might need to manage non-200 responses
       .then(data => {
         return {
