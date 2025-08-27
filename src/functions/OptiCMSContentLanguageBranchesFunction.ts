@@ -19,8 +19,8 @@ interface Credentials {
 const discoveryPayload = {
   functions: [
     {
-      name: 'listLanguageBranches',
-      description: 'List all language branch definitions in Optimizely CMS.',
+      name: 'getLanguageBranches',
+      description: 'List all language branch definitions in the system.',
       parameters: [],
       endpoint: LIST_LANGUAGE_BRANCHES_ENDPOINT,
       http_method: 'GET'
@@ -42,7 +42,7 @@ const discoveryPayload = {
   ]
 };
 
-export class LanguageBranchesFunction extends Function {
+export class OptiCMSContentLanguageBranchesFunction extends Function {
   public async perform(): Promise<Response> {
     if (this.request.path === DISCOVERY_ENDPOINT) {
       return new Response(200, discoveryPayload);

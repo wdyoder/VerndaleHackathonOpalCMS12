@@ -1,7 +1,7 @@
 meta:
   app_id: verndale_hackathon_opal_cms12
   display_name: Verndale Hackathon Opal Cms12
-  version: 1.0.0-dev.1
+  version: 1.0.0-dev.2
   vendor: verndale
   summary: An example of an Opal Tool that connects to CMS 12 and assists with page creation.
   support_url: https://www.verndale.com
@@ -20,3 +20,9 @@ functions:
   language_branches_tool:
     entry_point: LanguageBranchesFunction
     description: Tools for listing and retrieving Optimizely CMS language branches
+  opal_content_definitions_tool:
+    entry_point: OptiCMSContentDefinitionsContentTypesAPIToolFunction
+    description: Opal Tool Function for CMS Content Definitions
+  opal_content_management_tool:
+    entry_point: OptiCMSContentManagementAPIToolFunction
+    description: Opal Tool Function for CMS Content Management API

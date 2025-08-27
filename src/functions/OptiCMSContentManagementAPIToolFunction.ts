@@ -38,7 +38,7 @@ const discoveryPayload = {
  * - Name must match the value of entry_point property from app.yml manifest
  * - Name must match the file name
  */
-export class OpalToolFunction extends Function {
+export class OptiCMSContentManagementAPIToolFunction extends Function {
 
   /**
    * Processing the request from Opal

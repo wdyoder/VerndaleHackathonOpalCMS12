@@ -2,73 +2,44 @@ sections:
   - key: instructions
     label: Instructions
     elements:
-      - type: text
-        key: opal_tool_url
-        label: Opal Tool URL
-        disabled: true
-        help: Paste the URL below into your Opal tool settings to enable sample tools.
-      - type: text
-        key: another_opal_tool_url
-        label: Another Opal Tool URL
-        disabled: true
-        help: Paste the URL below into your Opal tool settings to enable another Opal tool.
-      - type: divider
       - type: instructions
-        text: Paste the URL above into `Discovery URL` field in Opal account `Tools` section.
-# uncomment if you want to use bearer token authentication
-#  - key: bearer_token
-#    label: Bearer Token
-#    elements:
-#      - type: secret
-#        key: bearer_token
-#        label: Bearer Token (optional)
-#        help: |
-#          If you want to use bearer token for authentication, paste it here. You will have to configure it in Opal registry settings.
-#          Otherwise, leave it empty.
-#      - type: button
-#        label: Save token
-#        action: save_token
-  #=====================================================================================================================
-  # Sample username/password authentication section
-  #=====================================================================================================================
-  #- key: auth
-  #  label: Authorization
-  #  properties:
-  #    - integrated
-  #  elements:
-  #    - type: text
-  #      key: email
-  #      required: true
-  #      label: Username/Email Address
-  #      help: |
-  #        Enter your username or email address to authenticate
-  #      hint: user@yourcompany.com
-  #    - type: secret
-  #      key: api_key
-  #      required: true
-  #      label: API Key
-  #      help: |
-  #        Enter your API key to authenticate
-  #    - type: button
-  #      label: Authorize
-  #      style: primary
-  #      action: authorize
-
-  #=====================================================================================================================
-  # Sample OAuth section
-  #=====================================================================================================================
-  #- key: oauth
-  #  label: OAuth authorization
-  #  properties:
-  #    - authorized
-  #  elements:
-  #    - type: instructions
-  #      text: Please continue to Google to authorize the connection with ODP
-  #    - type: oauth_button
-  #      label: Authorize with Google
-  #    - type: instructions
-  #      text: |
-  #        ** ⚠️ You need to perform the authorization to start to sync data. ⚠️ **
-  #      visible:
-  #        key: oauth.authorized
-  #        equals: false
+        text: Paste the URL(s) below into `Discovery URL` field in Opal account `Tools` section.
+      - type: text
+        key: opal_content_definitions_tool_url
+        label: Opal Tool URL for CMS Content Definitions
+        disabled: true
+        help: Paste the URL below into your Opal tool settings to enable the CMS Content Definitions tool.
+      - type: text
+        key: opal_content_management_tool_url
+        label: Opal Tool URL for CMS Content Management API
+        disabled: true
+        help: Paste the URL below into your Opal tool settings to enable the CMS Content Management API tool.
+  - key: auth
+    label: Authentication
+    elements:
+      - type: instructions
+        text: CMS Connection Information
+      - type: text
+        key: cms_base_url
+        label: CMS Base URL
+        disabled: false
+        required: true
+        help: The base URL of your CMS instance (e.g., https://your-cms-instance.com)
+        hint: https://your-cms-instance.com
+      - type: text
+        key: cms_client_id
+        label: CMS Client ID
+        disabled: false
+        required: true
+        help: The Client ID for your CMS instance
+        hint: your-client-id
+      - type: secret
+        key: cms_api_key
+        label: CMS API Key
+        disabled: false
+        required: true
+        help: The API Key for your CMS instance
+      - type: button
+        label: Authorize
+        style: primary
+        action: authorize
