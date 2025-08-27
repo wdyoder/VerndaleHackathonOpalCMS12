@@ -126,8 +126,11 @@ export class OptiCMSContentDefinitionsContentTypesAPIToolFunction extends Functi
       }
     };
 
-    fetch(`${credentials.cms_base_url}/api/episerver/v3.0/contenttypes`, options)
-      .then(response => response.json())  // am*** might need to manage non-200 responses
+    return fetch(`${credentials.cms_base_url}/api/episerver/v3.0/contenttypes`, options)
+      .then(response => {
+        logger.info("response status: ", response.status);
+        return response.json(); 
+      })
       .then(data => {
         return {
           output_value: data
@@ -148,7 +151,7 @@ export class OptiCMSContentDefinitionsContentTypesAPIToolFunction extends Functi
       }
     };
    
-    fetch(`${credentials.cms_base_url}/api/episerver/v3.0/contenttypes/{id}/${parameters.id}`, options)
+    return fetch(`${credentials.cms_base_url}/api/episerver/v3.0/contenttypes/{id}/${parameters.id}`, options)
       .then(response => response.json())  // am*** might need to manage non-200 responses
       .then(data => {
         return {
