@@ -7,9 +7,11 @@ const GET_CONTENT_TYPES_ENDPOINT = '/api/episerver/v3.0/contenttypes';
 const GET_CONTENT_TYPE_BY_ID_ENDPOINT = '/api/episerver/v3.0/contenttypes/{id}';
 
 // defines parameters interfaces (ContentTypes)
+// eslint-disable-next-line @typescript-eslint/no-empty-object-type, @typescript-eslint/no-empty-interface
 interface GetContentTypesParameter {
-  // am*** not implemented because this parameter is optional, and will provide an x-epi-continuation token to get next batch of content-types  
-  // top: number;                  
+  // am*** not implemented because this parameter is optional,
+  //  and will provide an x-epi-continuation token to get next batch of content-types
+  // top: number;
   // am*** not implemented because this parameter is optional, and not documented in the documentation
   //  includeSystemTypes: boolean;
 }
@@ -27,16 +29,16 @@ interface Credentials {
 const discoveryPayload = {
   'functions': [
     {
-      'name': 'getContentTypes',  
-      'description': 'List all content types in the system',       
+      'name': 'getContentTypes',
+      'description': 'List all content types in the system',
       'parameters': [
       ],
       'endpoint': GET_CONTENT_TYPES_ENDPOINT,
       'http_method': 'GET'
-    }, 
+    },
     {
-      'name': 'getContentTypeById',  
-      'description': 'Get a content type by its ID',       
+      'name': 'getContentTypeById',
+      'description': 'Get a content type by its ID',
       'parameters': [
         {
           'name': 'id',
@@ -63,21 +65,23 @@ export class OptiCMSContentDefinitionsContentTypesAPIToolFunction extends Functi
   public async perform(): Promise<Response> {
 
     if (this.request.path === DISCOVERY_ENDPOINT) {
-      return new Response(200, discoveryPayload);      
-    } 
-    
+      return new Response(200, discoveryPayload);
+    }
+
     if (this.request.path === GET_CONTENT_TYPES_ENDPOINT) {
       const params = this.extractParameters() as GetContentTypesParameter;
-      const credentials = await storage.settings.get('auth').then(s => s) as Credentials;     // am*** need to extract to a function
-      const response =  this.getContentTypes(params, credentials);            
-      return new Response(200, response);      
-    }    
+      // am*** need to extract to a function
+      const credentials = await storage.settings.get('auth').then((s) => s) as Credentials;
+      const response =  this.getContentTypes(params, credentials);
+      return new Response(200, response);
+    }
 
     if (this.request.path === GET_CONTENT_TYPE_BY_ID_ENDPOINT) {
       const params = this.extractParameters() as GetContentTypeByIdParameter;
-      const credentials = await storage.settings.get('auth').then(s => s) as Credentials;     // am*** need to extract to a function
-      const response =  this.getContentTypeById(params, credentials);            
-      return new Response(200, response);      
+      // am*** need to extract to a function
+      const credentials = await storage.settings.get('auth').then((s) => s) as Credentials;
+      const response =  this.getContentTypeById(params, credentials);
+      return new Response(200, response);
     }
 
     return new Response(400, 'Invalid path');
@@ -89,7 +93,7 @@ export class OptiCMSContentDefinitionsContentTypesAPIToolFunction extends Functi
       // Standard format: { "parameters": { ... } }
       logger.info('Extracted parameters from \'parameters\' key:', this.request.bodyJSON.parameters);
       return this.request.bodyJSON.parameters;
-    } 
+    }
 
     // Fallback for direct testing: { "name": "value" }
     logger.warn('\'parameters\' key not found in request body. Using body directly.');
@@ -106,7 +110,7 @@ export class OptiCMSContentDefinitionsContentTypesAPIToolFunction extends Functi
   }
 
   private async getContentTypes(parameters: GetContentTypesParameter, credentials: Credentials) {
-        
+
     const options = {
       method: 'GET',
       headers: {
@@ -115,13 +119,11 @@ export class OptiCMSContentDefinitionsContentTypesAPIToolFunction extends Functi
     };
 
     return fetch(`${credentials.cms_base_url}${GET_CONTENT_TYPES_ENDPOINT}`, options)
-      .then(response => response.json())  // am*** might need to manage non-200 responses
-      .then(data => {
-        return {
-          output_value: data
-        };
-      })
-      .catch(error => {
+      .then((response) => response.json())  // am*** might need to manage non-200 responses
+      .then((data) => ({
+        output_value: data
+      }))
+      .catch((error) => {
         console.error('Error fetching data:', error);
         throw new Error('Failed to fetch content types');
       });
@@ -135,17 +137,15 @@ export class OptiCMSContentDefinitionsContentTypesAPIToolFunction extends Functi
         accept: 'application/json',
       }
     };
-   
+
     return fetch(`${credentials.cms_base_url}${GET_CONTENT_TYPE_BY_ID_ENDPOINT}/${parameters.id}`, options)
-      .then(response => response.json())  // am*** might need to manage non-200 responses
-      .then(data => {
-        return {
-          output_value: data
-        };
-      })
-      .catch(error => {
+      .then((response) => response.json())  // am*** might need to manage non-200 responses
+      .then((data) => ({
+        output_value: data
+      }))
+      .catch((error) => {
         console.error('Error fetching data:', error);
         throw new Error('Failed to fetch content type by ID');
-      });    
+      });
   }
 }

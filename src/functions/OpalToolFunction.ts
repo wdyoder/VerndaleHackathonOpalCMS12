@@ -1,4 +1,5 @@
 import { logger, Function, Response } from '@zaiusinc/app-sdk';
+import {storage} from '@zaiusinc/app-sdk';
 
 // Define interfaces for the parameters of each function
 interface Tool1Parameters {
@@ -75,6 +76,8 @@ export class OpalToolFunction extends Function {
   private async tool1Handler(parameters: Tool1Parameters) {
     // implement your logic here
 
+    const credentials = await storage.settings.get('auth');
+    const foo = credentials.cms_base_url;
     return {
       output_value: 'Output from the tool'
     };
