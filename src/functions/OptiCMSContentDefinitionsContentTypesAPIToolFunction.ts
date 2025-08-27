@@ -29,22 +29,22 @@ interface Credentials {
 const discoveryPayload = {
   'functions': [
     {
-      'name': 'getContentTypes',
-      'description': 'List all content types in the system',
+      'name': 'verndale_get_content_types',
+      'description': 'List all of the content types that are found by the CMS content definitions API.',
       'parameters': [
       ],
       'endpoint': GET_CONTENT_TYPES_ENDPOINT,
       'http_method': 'GET'
     },
     {
-      'name': 'getContentTypeById',
-      'description': 'Get a content type by its ID',
+      'name': 'verndale_get_content_type_by_id',
+      'description': 'Get all the details about a specific content type by its ID using the CMS content definitions API.',  // am*** maybe include example of the response
       'parameters': [
         {
           'name': 'id',
           'type': 'string',
           'required': true,
-          'description': 'The ID of the content type to retrieve'
+          'description': 'The ID of the content type to retrieve from the CMS'
         }
       ],
       'endpoint': GET_CONTENT_TYPE_BY_ID_ENDPOINT,
@@ -72,7 +72,10 @@ export class OptiCMSContentDefinitionsContentTypesAPIToolFunction extends Functi
       const params = this.extractParameters() as GetContentTypesParameter;
       // am*** need to extract to a function
       const credentials = await storage.settings.get('auth').then((s) => s) as Credentials;
-      const response =  this.getContentTypes(params, credentials);
+      const response =  await this.getContentTypes(params, credentials);
+
+      logger.info("response from getContentTypes: ", response);
+
       return new Response(200, response);
     }
 
@@ -80,7 +83,10 @@ export class OptiCMSContentDefinitionsContentTypesAPIToolFunction extends Functi
       const params = this.extractParameters() as GetContentTypeByIdParameter;
       // am*** need to extract to a function
       const credentials = await storage.settings.get('auth').then((s) => s) as Credentials;
-      const response =  this.getContentTypeById(params, credentials);
+      const response =  await this.getContentTypeById(params, credentials);
+
+      logger.info("response from getContentTypeById: ", response);
+
       return new Response(200, response);
     }
 
@@ -111,6 +117,8 @@ export class OptiCMSContentDefinitionsContentTypesAPIToolFunction extends Functi
 
   private async getContentTypes(parameters: GetContentTypesParameter, credentials: Credentials) {
 
+    logger.info("calling get-content-types...");
+
     const options = {
       method: 'GET',
       headers: {
@@ -118,7 +126,7 @@ export class OptiCMSContentDefinitionsContentTypesAPIToolFunction extends Functi
       }
     };
 
-    return fetch(`${credentials.cms_base_url}/api/episerver/v3.0/contenttypes`, options)
+    fetch(`${credentials.cms_base_url}/api/episerver/v3.0/contenttypes`, options)
       .then(response => response.json())  // am*** might need to manage non-200 responses
       .then(data => {
         return {
@@ -140,7 +148,7 @@ export class OptiCMSContentDefinitionsContentTypesAPIToolFunction extends Functi
       }
     };
    
-    return fetch(`${credentials.cms_base_url}/api/episerver/v3.0/contenttypes/{id}/${parameters.id}`, options)
+    fetch(`${credentials.cms_base_url}/api/episerver/v3.0/contenttypes/{id}/${parameters.id}`, options)
       .then(response => response.json())  // am*** might need to manage non-200 responses
       .then(data => {
         return {
