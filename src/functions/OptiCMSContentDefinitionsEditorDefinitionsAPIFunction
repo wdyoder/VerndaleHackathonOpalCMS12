@@ -1,0 +1,212 @@
+import { logger, Function, Response } from '@zaiusinc/app-sdk';
+import { storage } from '@zaiusinc/app-sdk';
+import fetch from 'node-fetch';
+
+// constants
+const DISCOVERY_ENDPOINT = '/discovery';
+const LIST_EDITOR_DEFINITIONS_ENDPOINT = '/getEditorDefinitions';
+const GET_EDITOR_DEFINITION_BY_TYPE_AND_UIHINT_ENDPOINT = '/getEditorDefinitionByTypeAndUiHint/';
+const OPTIMIZELY_EDITORS_API_ENDPOINT = '/api/episerver/v3.0/editors';
+
+/** Editor Definitions (GET) */
+interface ListEditorDefinitionsParameters {
+  /** Optional filter on DataType via query string */
+  typeFilter?: string;
+}
+
+interface GetEditorDefinitionParameters {
+  /** The type for an editor definition (path segment) */
+  dataType: string;
+  /** The UIHint for an editor definition (path segment) */
+  uiHint: string;
+}
+
+interface Credentials {
+  cms_base_url: string;
+}
+
+// Define Opal tool metadata  - list of tools and their parameters
+const discoveryPayload = {
+  'functions': [
+    // === Editor Definitions: List (GET) ===
+    {
+      'name': 'verndale_list_editor_definitions',
+      'description':
+        'List available editor definitions in Optimizely Content Definitions. Use this when you need to discover which editor is associated with a given content data type, or to show all available editors the CMS exposes.',
+      'parameters': [
+        {
+          'name': 'typeFilter',
+          'type': 'string',
+          'description': 'Optional filter on DataType (query string).',
+          'required': false
+        }
+      ],
+      'endpoint': LIST_EDITOR_DEFINITIONS_ENDPOINT,
+      'http_method': 'GET'
+    },
+
+    // === Editor Definitions: Get by type + uiHint (GET) ===
+    {
+      'name': 'verndale_get_editor_definition',
+      'description':
+        'Retrieve a single editor definition by content data type and UI hint. Use this when you already know the dataType and uiHint and need the exact editor implementation.',
+      'parameters': [
+        {
+          'name': 'dataType',
+          'type': 'string',
+          'description': 'The type for an editor definition (path parameter).',
+          'required': true
+        },
+        {
+          'name': 'uiHint',
+          'type': 'string',
+          'description': 'The UIHint for an editor definition (path parameter).',
+          'required': true
+        }
+      ],
+      'endpoint': GET_EDITOR_DEFINITION_BY_TYPE_AND_UIHINT_ENDPOINT,
+      'http_method': 'GET'
+    }
+  ]
+};
+
+/**
+ * class that implements the Opal tool functions. Requirements:
+ * - Must extend the Function class from the SDK
+ * - Name must match the value of entry_point property from app.yml manifest
+ * - Name must match the file name
+ */
+export class OptiCMSContentDefinitionsEditorDefinitionsAPIFunction extends Function {
+
+  /**
+   * Processing the request from Opal
+   * Add your logic here to handle every tool declared in the discoveryPayload.
+   */
+  public async perform(): Promise<Response> {
+
+    if (this.request.path === DISCOVERY_ENDPOINT) {
+      return new Response(200, discoveryPayload);
+    }
+
+    if (this.request.path === LIST_EDITOR_DEFINITIONS_ENDPOINT) {
+      const params = this.extractParameters() as ListEditorDefinitionsParameters;
+      const credentials = await storage.settings.get('auth').then((s) => s) as Credentials;
+      const response = await this.listEditorDefinitionsHandler(params, credentials);
+
+      logger.info('response from listEditorDefinitionsHandler: ', response);
+
+      return new Response(200, response);
+    }
+
+    if (this.request.path === GET_EDITOR_DEFINITION_BY_TYPE_AND_UIHINT_ENDPOINT) {
+      // Expected: /content-definitions/editors/{dataType}/{uiHint}
+      const segments = this.request.path.split('/').filter(Boolean);
+      const dataType = segments[2];
+      const uiHint = segments[3];
+
+      if (!dataType || !uiHint) {
+        return new Response(400, {
+          message: 'Missing dataType or uiHint in path. Expected /content-definitions/editors/{dataType}/{uiHint}'
+        });
+      }
+
+      const params = { dataType, uiHint };
+      const credentials = await storage.settings.get('auth').then((s) => s) as Credentials;
+      const response = await this.getEditorDefinitionHandler(params, credentials);
+
+      logger.info('response from getEditorDefinitionHandler: ', response);
+
+      if (!response) {
+        return new Response(404, { message: 'Editor definition not found' });
+      }
+      return new Response(200, response);
+    }
+
+    return new Response(400, 'Invalid path');
+  }
+
+  private extractParameters() {
+    // Extract parameters from the request body
+    if (this.request.bodyJSON && this.request.bodyJSON.parameters) {
+      // Standard format: { "parameters": { ... } }
+      logger.info('Extracted parameters from \'parameters\' key:', this.request.bodyJSON.parameters);
+      return this.request.bodyJSON.parameters;
+    }
+
+    // Fallback for direct testing: { "name": "value" }
+    logger.warn('\'parameters\' key not found in request body. Using body directly.');
+    return this.request.bodyJSON;
+  }
+
+
+  private async getCredentials() {
+    // am*** to be implemented
+  }
+
+  // ======================
+  // Editor Definitions API
+  // ======================
+
+  private async listEditorDefinitionsHandler(parameters: ListEditorDefinitionsParameters, credentials: Credentials) {
+
+    logger.info('calling list-editor-definitions...');
+
+    const options = {
+      method: 'GET',
+      headers: {
+        accept: 'application/json',
+      }
+    };
+
+    const url = parameters.typeFilter 
+      ? `${credentials.cms_base_url}${OPTIMIZELY_EDITORS_API_ENDPOINT}?typeFilter=${encodeURIComponent(parameters.typeFilter)}`
+      : `${credentials.cms_base_url}${OPTIMIZELY_EDITORS_API_ENDPOINT}`;
+
+    return fetch(url, options)
+      .then(response => {
+        logger.info('response status: ', response.status);
+        return response.json(); 
+      })
+      .then(data => {
+        return {
+          output_value: data
+        };
+      })
+      .catch(error => {
+        console.error('Error fetching data:', error);
+        throw new Error('Failed to fetch editor definitions');
+      });
+  }
+
+  private async getEditorDefinitionHandler(parameters: GetEditorDefinitionParameters, credentials: Credentials) {
+
+    const options = {
+      method: 'GET',
+      headers: {
+        accept: 'application/json',
+      }
+    };
+
+    const url = `${credentials.cms_base_url}${OPTIMIZELY_EDITORS_API_ENDPOINT}/${encodeURIComponent(parameters.dataType)}/${encodeURIComponent(parameters.uiHint)}`;
+
+    return fetch(url, options)
+      .then(response => {
+        if (response.status === 404) {
+          return null;
+        }
+        return response.json();
+      })  // am*** might need to manage non-200 responses
+      .then(data => {
+        if (data === null) {
+          return null;
+        }
+        return {
+          output_value: data
+        };
+      })
+      .catch(error => {
+        console.error('Error fetching data:', error);
+        throw new Error('Failed to fetch editor definition');
+      });
+  }
+}
