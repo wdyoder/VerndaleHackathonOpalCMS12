@@ -3,8 +3,8 @@ import { storage } from '@zaiusinc/app-sdk';
 
 // constants
 const DISCOVERY_ENDPOINT = '/discovery';
-const LIST_LANGUAGE_BRANCHES_ENDPOINT = '/api/episerver/v3.0/languagebranches';
-const GET_LANGUAGE_BRANCH_BY_NAME_ENDPOINT = '/api/episerver/v3.0/languagebranches/{name}';
+const LIST_LANGUAGE_BRANCHES_ENDPOINT = '/getLanguageBranches';
+const GET_LANGUAGE_BRANCH_BY_NAME_ENDPOINT = '/getLanguageBranchByName';
 
 // parameters
 interface GetLanguageBranchByNameParameters {
@@ -19,14 +19,14 @@ interface Credentials {
 const discoveryPayload = {
   functions: [
     {
-      name: 'getLanguageBranches',
+      name: 'verndale_get_language_branches',
       description: 'List all language branch definitions in the system.',
       parameters: [],
       endpoint: LIST_LANGUAGE_BRANCHES_ENDPOINT,
       http_method: 'GET'
     },
     {
-      name: 'getLanguageBranchByName',
+      name: 'verndale_get_language_branch_by_name',
       description: 'Get a specific language branch definition by its name.',
       parameters: [
         {
@@ -86,7 +86,7 @@ export class OptiCMSContentLanguageBranchesFunction extends Function {
   }
 
   private async listLanguageBranches(credentials: Credentials) {
-    const url = `${credentials.cms_base_url}${LIST_LANGUAGE_BRANCHES_ENDPOINT}`;
+    const url = `${credentials.cms_base_url}/api/episerver/v3.0/languagebranches`;
     const options = {
       method: 'GET',
       headers: {
@@ -112,7 +112,7 @@ export class OptiCMSContentLanguageBranchesFunction extends Function {
     parameters: GetLanguageBranchByNameParameters,
     credentials: Credentials
   ) {
-    const base = `${credentials.cms_base_url}${GET_LANGUAGE_BRANCH_BY_NAME_ENDPOINT}`;
+    const base = `${credentials.cms_base_url}/api/episerver/v3.0/languagebranches`;
     const url = `${base}/${encodeURIComponent(parameters.name)}`;
     const options = {
       method: 'GET',
