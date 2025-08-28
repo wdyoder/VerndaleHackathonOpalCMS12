@@ -5,6 +5,7 @@ import { storage } from '@zaiusinc/app-sdk';
 const DISCOVERY_ENDPOINT = '/discovery';
 const HEALTH_ENDPOINT = '/health';
 const GET_CONTENT_STRUCTURE_FROM_NODE_ENDPOINT = '/getContentStructureFromNode';
+const CREATE_CONTENT_ENDPOINT = '/createContent';
 
 // Define Opal tool metadata  - list of tools and their parameters
 const discoveryPayload = {
@@ -24,12 +25,35 @@ const discoveryPayload = {
       endpoint: GET_CONTENT_STRUCTURE_FROM_NODE_ENDPOINT,
       http_method: 'GET',
     },
+    {
+      name: 'content-create',
+      description: 'Creates a new content item in Optimizely CMS.',
+      parameters: [
+        {
+          name: 'payload',
+          type: 'object',
+          description:
+            'Request body as defined by Optimizely CMS Content Management API. Example matches Postman screenshot.',
+          required: true,
+        },
+        {
+          name: 'status',
+          type: 'string',
+          description: "Optional draft status override (e.g., 'Published').",
+          required: false,
+        },
+      ],
+      endpoint: CREATE_CONTENT_ENDPOINT,
+      http_method: 'POST',
+    },
   ],
 };
 
 interface Credentials {
   cms_base_url: string;
   access_token?: string;
+  basic_username?: string;
+  basic_password?: string;
 }
 
 /**
@@ -56,6 +80,13 @@ export class OptiCMSContentManagementAPIToolFunction extends Function {
       const params = this.extractParameters() as { root: string };
       const result = await this.getContentStructureFromNode(params);
       logger.info('response from getContentStructureFromNode: ', result);
+      return new Response(200, result);
+    }
+
+    if (this.request.path === CREATE_CONTENT_ENDPOINT) {
+      const params = this.extractParameters() as { payload: unknown; status?: string };
+      const result = await this.createContent(params);
+      logger.info('response from createContent: ', result);
       return new Response(200, result);
     }
 
@@ -119,6 +150,52 @@ export class OptiCMSContentManagementAPIToolFunction extends Function {
       .catch((error) => {
         console.error('Error fetching data:', error);
         throw new Error('Failed to fetch content structure');
+      });
+  }
+
+  private async createContent(parameters: { payload: unknown; status?: string }) {
+    if (!parameters?.payload) {
+      throw new Error("Missing required parameter 'payload'");
+    }
+
+    const credentials = (await storage.settings.get('auth').then((s) => s)) as Credentials;
+
+    const url = `${credentials.cms_base_url}/api/episerver/v3.0/contentmanagement`;
+
+    const headers: Record<string, string> = {
+      accept: 'application/json',
+      'Content-Type': 'application/json',
+      'User-Agent': 'OpalCMS-App/1.0',
+      'Accept-Language': 'en',
+    };
+    if (credentials.basic_username) {
+      const token = Buffer.from(
+        `${credentials.basic_username}:${credentials.basic_password ?? ''}`,
+      ).toString('base64');
+      headers.Authorization = `Basic ${token}`;
+    } else if (credentials.access_token) {
+      headers.Authorization = `Bearer ${credentials.access_token}`;
+    }
+
+    const options = {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(parameters.payload),
+    } as const;
+
+    logger.info('posting to URL: ', url);
+
+    return fetch(url, options)
+      .then((response) => {
+        logger.info('response status: ', response.status);
+        return response.json();
+      })
+      .then((data) => ({
+        output_value: data,
+      }))
+      .catch((error) => {
+        console.error('Error creating content:', error);
+        throw new Error('Failed to create content');
       });
   }
 }

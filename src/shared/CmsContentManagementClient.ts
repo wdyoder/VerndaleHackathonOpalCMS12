@@ -3,6 +3,8 @@ import { storage } from '@zaiusinc/app-sdk';
 interface CmsApiSettings {
   cms_base_url: string;
   access_token?: string;
+  basic_username?: string;
+  basic_password?: string;
 }
 
 export class CmsContentManagementClient {
@@ -28,9 +30,15 @@ export class CmsContentManagementClient {
     return root.replace(':/', '://');
   }
 
-  public buildHeaders(): Record<string, string> {
+  public buildHeaders(contentType?: string): Record<string, string> {
     const headers: Record<string, string> = { Accept: 'application/json' };
-    if (this.settings.access_token) {
+    if (contentType) headers['Content-Type'] = contentType;
+    if (this.settings.basic_username) {
+      const encoded = Buffer.from(
+        `${this.settings.basic_username}:${this.settings.basic_password ?? ''}`,
+      ).toString('base64');
+      headers.Authorization = `Basic ${encoded}`;
+    } else if (this.settings.access_token) {
       headers.Authorization = `Bearer ${this.settings.access_token}`;
     }
     return headers;
@@ -56,5 +64,36 @@ export class CmsContentManagementClient {
       return { ok: false, status: resp.status, errorText: await resp.text() };
     }
     return { ok: true, status: resp.status, data: await resp.json() };
+  }
+
+  public async postJson(
+    path: string,
+    body: unknown,
+    query?: Record<string, string | number | boolean>,
+  ): Promise<
+    { ok: true; status: number; data: unknown } | { ok: false; status: number; errorText: string }
+  > {
+    const root = this.buildRoot();
+    const base = root.endsWith('/') ? root : `${root}/`;
+    const cleanPath = String(path).replace(/^\/+/, '');
+    const url = new URL(cleanPath, base);
+    if (query) {
+      Object.entries(query).forEach(([k, v]) => {
+        if (v !== undefined && v !== null) url.searchParams.set(k, String(v));
+      });
+    }
+    const resp = await fetch(url.toString(), {
+      method: 'POST',
+      headers: this.buildHeaders('application/json'),
+      body: JSON.stringify(body ?? {}),
+    });
+    if (!resp.ok) {
+      return { ok: false, status: resp.status, errorText: await resp.text() };
+    }
+    const contentType = resp.headers.get('content-type') || '';
+    if (contentType.includes('application/json')) {
+      return { ok: true, status: resp.status, data: await resp.json() };
+    }
+    return { ok: true, status: resp.status, data: await resp.text() };
   }
 }

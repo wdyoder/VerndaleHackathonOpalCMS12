@@ -27,18 +27,17 @@ sections:
         help: The base URL of your CMS instance (e.g., https://your-cms-instance.com)
         hint: https://your-cms-instance.com
       - type: text
-        key: cms_client_id
-        label: CMS Client ID
+        key: basic_username
+        label: Basic Auth Username (optional)
         disabled: false
-        required: true
-        help: The Client ID for your CMS instance
-        hint: your-client-id
+        required: false
+        help: Username for Basic Auth when using on-prem or dev environments
       - type: secret
-        key: cms_api_key
-        label: CMS API Key
+        key: basic_password
+        label: Basic Auth Password (optional)
         disabled: false
-        required: true
-        help: The API Key for your CMS instance
+        required: false
+        help: Password for Basic Auth. If provided, overrides Bearer token.
       - type: button
         label: Authorize
         style: primary
