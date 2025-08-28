@@ -1,7 +1,7 @@
 /* eslint-disable max-len */
 import { logger, Function, Response } from '@zaiusinc/app-sdk';
 import { storage } from '@zaiusinc/app-sdk';
-import { CmsClient } from '../shared/CmsClient';
+import { CmsContentDefinitionClient } from '../shared/CmsContentDefinitionClient';
 
 // Tool Endpoints
 const DISCOVERY_ENDPOINT = '/discovery';
@@ -69,34 +69,35 @@ interface GetEditorDefinitionParameters {
 const discoveryPayload = {
   functions: [
     {
-      'name': 'verndale_get_content_types',
-      'description': 'List all of the content types that are found by the CMS content definitions API.',
-      'parameters': [
-      ],
-      'endpoint': GET_CONTENT_TYPES_ENDPOINT,
-      'http_method': 'GET'
+      name: 'verndale_get_content_types',
+      description:
+        'List all of the content types that are found by the CMS content definitions API.',
+      parameters: [],
+      endpoint: GET_CONTENT_TYPES_ENDPOINT,
+      http_method: 'GET',
     },
     {
-      'name': 'verndale_get_content_type_by_id',
+      name: 'verndale_get_content_type_by_id',
 
-      'description': 'Get all the details about a specific content type by its ID using the CMS content definitions API.',  // am*** maybe include example of the response
-      'parameters': [
+      description:
+        'Get all the details about a specific content type by its ID using the CMS content definitions API.', // am*** maybe include example of the response
+      parameters: [
         {
-          'name': 'id',
-          'type': 'string',
-          'required': true,
-          'description': 'The ID of the content type to retrieve from the CMS'
-        }
+          name: 'id',
+          type: 'string',
+          required: true,
+          description: 'The ID of the content type to retrieve from the CMS',
+        },
       ],
-      'endpoint': GET_CONTENT_TYPE_BY_ID_ENDPOINT,
-      'http_method': 'GET'
+      endpoint: GET_CONTENT_TYPE_BY_ID_ENDPOINT,
+      http_method: 'GET',
     },
     {
       name: 'verndale_get_language_branches',
       description: 'List all language branch definitions in the system.',
       parameters: [],
       endpoint: LIST_LANGUAGE_BRANCHES_ENDPOINT,
-      http_method: 'GET'
+      http_method: 'GET',
     },
     {
       name: 'verndale_get_language_branch_by_name',
@@ -106,11 +107,11 @@ const discoveryPayload = {
           name: 'name',
           type: 'string',
           required: true,
-          description: 'The language branch name to retrieve (for example, en, sv).'
-        }
+          description: 'The language branch name to retrieve (for example, en, sv).',
+        },
       ],
       endpoint: GET_LANGUAGE_BRANCH_BY_NAME_ENDPOINT,
-      http_method: 'GET'
+      http_method: 'GET',
     },
     {
       name: 'content-definitions-property-data-types-list',
@@ -147,46 +148,45 @@ const discoveryPayload = {
     },
     // === Editor Definitions: List (GET) ===
     {
-      'name': 'verndale_list_editor_definitions',
-      'description':
+      name: 'verndale_list_editor_definitions',
+      description:
         'List available editor definitions in Optimizely Content Definitions. Use this when you need to discover which editor is associated with a given content data type, or to show all available editors the CMS exposes.',
-      'parameters': [
+      parameters: [
         {
-          'name': 'typeFilter',
-          'type': 'string',
-          'description': 'Optional filter on DataType (query string).',
-          'required': false
-        }
+          name: 'typeFilter',
+          type: 'string',
+          description: 'Optional filter on DataType (query string).',
+          required: false,
+        },
       ],
-      'endpoint': LIST_EDITOR_DEFINITIONS_ENDPOINT,
-      'http_method': 'GET'
+      endpoint: LIST_EDITOR_DEFINITIONS_ENDPOINT,
+      http_method: 'GET',
     },
 
     // === Editor Definitions: Get by type + uiHint (GET) ===
     {
-      'name': 'verndale_get_editor_definition',
-      'description':
+      name: 'verndale_get_editor_definition',
+      description:
         'Retrieve a single editor definition by content data type and UI hint. Use this when you already know the dataType and uiHint and need the exact editor implementation.',
-      'parameters': [
+      parameters: [
         {
-          'name': 'dataType',
-          'type': 'string',
-          'description': 'The type for an editor definition (path parameter).',
-          'required': true
+          name: 'dataType',
+          type: 'string',
+          description: 'The type for an editor definition (path parameter).',
+          required: true,
         },
         {
-          'name': 'uiHint',
-          'type': 'string',
-          'description': 'The UIHint for an editor definition (path parameter).',
-          'required': true
-        }
+          name: 'uiHint',
+          type: 'string',
+          description: 'The UIHint for an editor definition (path parameter).',
+          required: true,
+        },
       ],
-      'endpoint': GET_EDITOR_DEFINITION_BY_TYPE_AND_UIHINT_ENDPOINT,
-      'http_method': 'GET'
-    }
-  ]
+      endpoint: GET_EDITOR_DEFINITION_BY_TYPE_AND_UIHINT_ENDPOINT,
+      http_method: 'GET',
+    },
+  ],
 };
-
 
 /**
  * class that implements the Opal tool functions. Requirements:
@@ -195,9 +195,7 @@ const discoveryPayload = {
  * - Name must match the file name
  */
 export class OptiCMSContentDefinitionsAPIToolFunction extends Function {
-
   public async perform(): Promise<Response> {
-
     if (this.request.path === DISCOVERY_ENDPOINT) {
       return new Response(200, discoveryPayload);
     }
@@ -205,8 +203,8 @@ export class OptiCMSContentDefinitionsAPIToolFunction extends Function {
     if (this.request.path === GET_CONTENT_TYPES_ENDPOINT) {
       const params = this.extractParameters() as GetContentTypesParameter;
       // am*** need to extract to a function
-      const credentials = await storage.settings.get('auth').then((s) => s) as Credentials;
-      const response =  await this.getContentTypes(params, credentials);
+      const credentials = (await storage.settings.get('auth').then((s) => s)) as Credentials;
+      const response = await this.getContentTypes(params, credentials);
 
       logger.info('response from getContentTypes: ', response);
 
@@ -216,8 +214,8 @@ export class OptiCMSContentDefinitionsAPIToolFunction extends Function {
     if (this.request.path === GET_CONTENT_TYPE_BY_ID_ENDPOINT) {
       const params = this.extractParameters() as GetContentTypeByIdParameter;
       // am*** need to extract to a function
-      const credentials = await storage.settings.get('auth').then((s) => s) as Credentials;
-      const response =  await this.getContentTypeById(params, credentials);
+      const credentials = (await storage.settings.get('auth').then((s) => s)) as Credentials;
+      const response = await this.getContentTypeById(params, credentials);
 
       logger.info('response from getContentTypeById: ', response);
 
@@ -261,7 +259,7 @@ export class OptiCMSContentDefinitionsAPIToolFunction extends Function {
 
     if (this.request.path === LIST_EDITOR_DEFINITIONS_ENDPOINT) {
       const params = this.extractParameters() as ListEditorDefinitionsParameters;
-      const credentials = await storage.settings.get('auth').then((s) => s) as Credentials;
+      const credentials = (await storage.settings.get('auth').then((s) => s)) as Credentials;
       const response = await this.listEditorDefinitionsHandler(params, credentials);
 
       logger.info('response from listEditorDefinitionsHandler: ', response);
@@ -277,12 +275,13 @@ export class OptiCMSContentDefinitionsAPIToolFunction extends Function {
 
       if (!dataType || !uiHint) {
         return new Response(400, {
-          message: 'Missing dataType or uiHint in path. Expected /content-definitions/editors/{dataType}/{uiHint}'
+          message:
+            'Missing dataType or uiHint in path. Expected /content-definitions/editors/{dataType}/{uiHint}',
         });
       }
 
       const params = { dataType, uiHint };
-      const credentials = await storage.settings.get('auth').then((s) => s) as Credentials;
+      const credentials = (await storage.settings.get('auth').then((s) => s)) as Credentials;
       const response = await this.getEditorDefinitionHandler(params, credentials);
 
       logger.info('response from getEditorDefinitionHandler: ', response);
@@ -292,7 +291,6 @@ export class OptiCMSContentDefinitionsAPIToolFunction extends Function {
       }
       return new Response(200, response);
     }
-
 
     return new Response(400, 'Invalid path');
   }
@@ -306,12 +304,12 @@ export class OptiCMSContentDefinitionsAPIToolFunction extends Function {
     }
 
     // Fallback for direct testing: { "name": "value" }
-    logger.warn('\'parameters\' key not found in request body. Using body directly.');
+    logger.warn("'parameters' key not found in request body. Using body directly.");
     return this.request.bodyJSON;
   }
 
-  private async getClient(): Promise<CmsClient> {
-    return CmsClient.create();
+  private async getClient(): Promise<CmsContentDefinitionClient> {
+    return CmsContentDefinitionClient.create();
   }
 
   /**
@@ -327,14 +325,13 @@ export class OptiCMSContentDefinitionsAPIToolFunction extends Function {
   }
 
   private async getContentTypes(parameters: GetContentTypesParameter, credentials: Credentials) {
-
     logger.info('calling get-content-types...');
 
     const options = {
       method: 'GET',
       headers: {
         accept: 'application/json',
-      }
+      },
     };
 
     return fetch(`${credentials.cms_base_url}/api/episerver/v3.0/contenttypes`, options)
@@ -343,7 +340,7 @@ export class OptiCMSContentDefinitionsAPIToolFunction extends Function {
         return response.json();
       })
       .then((data) => ({
-        output_value: data
+        output_value: data,
       }))
       .catch((error) => {
         console.error('Error fetching data:', error);
@@ -351,19 +348,24 @@ export class OptiCMSContentDefinitionsAPIToolFunction extends Function {
       });
   }
 
-  private async getContentTypeById(parameters: GetContentTypeByIdParameter, credentials: Credentials) {
-
+  private async getContentTypeById(
+    parameters: GetContentTypeByIdParameter,
+    credentials: Credentials,
+  ) {
     const options = {
       method: 'GET',
       headers: {
         accept: 'application/json',
-      }
+      },
     };
 
-    return fetch(`${credentials.cms_base_url}/api/episerver/v3.0/contenttypes/{id}/${parameters.id}`, options)
-      .then((response) => response.json())  // am*** might need to manage non-200 responses
+    return fetch(
+      `${credentials.cms_base_url}/api/episerver/v3.0/contenttypes/{id}/${parameters.id}`,
+      options,
+    )
+      .then((response) => response.json()) // am*** might need to manage non-200 responses
       .then((data) => ({
-        output_value: data
+        output_value: data,
       }))
       .catch((error) => {
         console.error('Error fetching data:', error);
@@ -376,8 +378,8 @@ export class OptiCMSContentDefinitionsAPIToolFunction extends Function {
     const options = {
       method: 'GET',
       headers: {
-        accept: 'application/json'
-      }
+        accept: 'application/json',
+      },
     } as const;
 
     try {
@@ -396,15 +398,15 @@ export class OptiCMSContentDefinitionsAPIToolFunction extends Function {
 
   private async getLanguageBranchByName(
     parameters: GetLanguageBranchByNameParameters,
-    credentials: Credentials
+    credentials: Credentials,
   ) {
     const base = `${credentials.cms_base_url}/api/episerver/v3.0/languagebranches`;
     const url = `${base}/${encodeURIComponent(parameters.name)}`;
     const options = {
       method: 'GET',
       headers: {
-        accept: 'application/json'
-      }
+        accept: 'application/json',
+      },
     } as const;
 
     try {
@@ -412,7 +414,7 @@ export class OptiCMSContentDefinitionsAPIToolFunction extends Function {
       if (!response.ok) {
         const body = await response.text();
         throw new Error(
-          `Failed to get language branch '${parameters.name}': ${response.status} ${body}`
+          `Failed to get language branch '${parameters.name}': ${response.status} ${body}`,
         );
       }
       const data = await response.json();
@@ -475,15 +477,17 @@ export class OptiCMSContentDefinitionsAPIToolFunction extends Function {
   // Editor Definitions API
   // ======================
 
-  private async listEditorDefinitionsHandler(parameters: ListEditorDefinitionsParameters, credentials: Credentials) {
-
+  private async listEditorDefinitionsHandler(
+    parameters: ListEditorDefinitionsParameters,
+    credentials: Credentials,
+  ) {
     logger.info('calling list-editor-definitions...');
 
     const options = {
       method: 'GET',
       headers: {
         accept: 'application/json',
-      }
+      },
     };
 
     const url = parameters.typeFilter
@@ -496,7 +500,7 @@ export class OptiCMSContentDefinitionsAPIToolFunction extends Function {
         return response.json();
       })
       .then((data) => ({
-        output_value: data
+        output_value: data,
       }))
       .catch((error) => {
         console.error('Error fetching data:', error);
@@ -504,13 +508,15 @@ export class OptiCMSContentDefinitionsAPIToolFunction extends Function {
       });
   }
 
-  private async getEditorDefinitionHandler(parameters: GetEditorDefinitionParameters, credentials: Credentials) {
-
+  private async getEditorDefinitionHandler(
+    parameters: GetEditorDefinitionParameters,
+    credentials: Credentials,
+  ) {
     const options = {
       method: 'GET',
       headers: {
         accept: 'application/json',
-      }
+      },
     };
 
     const url = `${credentials.cms_base_url}${OPTIMIZELY_EDITORS_API_ENDPOINT}/${encodeURIComponent(parameters.dataType)}/${encodeURIComponent(parameters.uiHint)}`;
@@ -521,13 +527,13 @@ export class OptiCMSContentDefinitionsAPIToolFunction extends Function {
           return null;
         }
         return response.json();
-      })  // am*** might need to manage non-200 responses
+      }) // am*** might need to manage non-200 responses
       .then((data) => {
         if (data === null) {
           return null;
         }
         return {
-          output_value: data
+          output_value: data,
         };
       })
       .catch((error) => {

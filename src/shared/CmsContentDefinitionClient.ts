@@ -5,20 +5,20 @@ interface CmsApiSettings {
   access_token?: string;
 }
 
-export class CmsClient {
+export class CmsContentDefinitionClient {
   private readonly settings: CmsApiSettings;
 
   private constructor(settings: CmsApiSettings) {
     this.settings = settings;
   }
 
-  public static async create(): Promise<CmsClient> {
+  public static async create(): Promise<CmsContentDefinitionClient> {
     const raw = await storage.settings.get('cms_api');
     const settings = raw as unknown as Partial<CmsApiSettings> | undefined;
     if (!settings || typeof settings.base_url !== 'string') {
       throw new Error('CMS API settings are missing. Please configure base_url in settings.');
     }
-    return new CmsClient(settings as CmsApiSettings);
+    return new CmsContentDefinitionClient(settings as CmsApiSettings);
   }
 
   public buildRoot(): string {
@@ -34,7 +34,12 @@ export class CmsClient {
     return headers;
   }
 
-  public async getJson(path: string, query?: Record<string, string | number | boolean>) {
+  public async getJson(
+    path: string,
+    query?: Record<string, string | number | boolean>,
+  ): Promise<
+    { ok: true; status: number; data: unknown } | { ok: false; status: number; errorText: string }
+  > {
     const root = this.buildRoot();
     const url = new URL(`${root}/${path}`.replace(/\/{2,}/g, '/'));
     if (query) {

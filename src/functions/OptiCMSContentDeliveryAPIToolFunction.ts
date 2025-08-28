@@ -41,7 +41,6 @@ const discoveryPayload = {
  * - Name must match the file name
  */
 export class OptiCMSContentDeliveryAPIToolFunction extends Function {
-
   /**
    * Processing the request from Opal
    * Add your logic here to handle every tool declared in the discoveryPayload.
