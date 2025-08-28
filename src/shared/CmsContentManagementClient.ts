@@ -21,13 +21,16 @@ export class CmsContentManagementClient {
     return `${base}/api/episerver/v3.0`.replace(/\/{2,}/g, '/').replace(':/', '://');
   }
 
-  public async buildHeaders(): Promise<Record<string, string>> {
+  public buildHeaders(contentType?: string): Record<string, string> {
     const headers: Record<string, string> = { Accept: 'application/json' };
-    // if (this.settings.access_token) {
-    //   headers.Authorization = `Bearer ${this.settings.access_token}`;
-    // }
-    if (this.settings.cms_cm_client_id && this.settings.cms_cm_client_secret) {
-      headers.Authorization = await this.buildBasicAuth();
+    if (contentType) headers['Content-Type'] = contentType;
+    if (this.settings.basic_username) {
+      const encoded = Buffer.from(
+        `${this.settings.basic_username}:${this.settings.basic_password ?? ''}`,
+      ).toString('base64');
+      headers.Authorization = `Basic ${encoded}`;
+    } else if (this.settings.access_token) {
+      headers.Authorization = `Bearer ${this.settings.access_token}`;
     }
     return headers;
   }
@@ -46,7 +49,9 @@ export class CmsContentManagementClient {
     { ok: true; status: number; data: unknown } | { ok: false; status: number; errorText: string }
   > {
     const root = this.buildRoot();
-    const url = new URL(`${root}/${path}`.replace(/\/{2,}/g, '/'));
+    const base = root.endsWith('/') ? root : `${root}/`;
+    const cleanPath = String(path).replace(/^\/+/, '');
+    const url = new URL(cleanPath, base);
     if (query) {
       Object.entries(query).forEach(([k, v]) => {
         if (v !== undefined && v !== null) url.searchParams.set(k, String(v));
@@ -58,5 +63,36 @@ export class CmsContentManagementClient {
       return { ok: false, status: resp.status, errorText: await resp.text() };
     }
     return { ok: true, status: resp.status, data: await resp.json() };
+  }
+
+  public async postJson(
+    path: string,
+    body: unknown,
+    query?: Record<string, string | number | boolean>,
+  ): Promise<
+    { ok: true; status: number; data: unknown } | { ok: false; status: number; errorText: string }
+  > {
+    const root = this.buildRoot();
+    const base = root.endsWith('/') ? root : `${root}/`;
+    const cleanPath = String(path).replace(/^\/+/, '');
+    const url = new URL(cleanPath, base);
+    if (query) {
+      Object.entries(query).forEach(([k, v]) => {
+        if (v !== undefined && v !== null) url.searchParams.set(k, String(v));
+      });
+    }
+    const resp = await fetch(url.toString(), {
+      method: 'POST',
+      headers: this.buildHeaders('application/json'),
+      body: JSON.stringify(body ?? {}),
+    });
+    if (!resp.ok) {
+      return { ok: false, status: resp.status, errorText: await resp.text() };
+    }
+    const contentType = resp.headers.get('content-type') || '';
+    if (contentType.includes('application/json')) {
+      return { ok: true, status: resp.status, data: await resp.json() };
+    }
+    return { ok: true, status: resp.status, data: await resp.text() };
   }
 }

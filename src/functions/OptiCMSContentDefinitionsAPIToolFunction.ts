@@ -12,6 +12,12 @@ const LIST_LANGUAGE_BRANCHES_ENDPOINT = '/getLanguageBranches';
 const GET_LANGUAGE_BRANCH_BY_NAME_ENDPOINT = '/getLanguageBranchByName';
 const LIST_EDITOR_DEFINITIONS_ENDPOINT = '/getEditorDefinitions';
 const GET_EDITOR_DEFINITION_BY_TYPE_AND_UIHINT_ENDPOINT = '/getEditorDefinitionByTypeAndUiHint/';
+const CONTENT_DEFINITIONS_PROPERTY_DATA_TYPES_LIST_ENDPOINT =
+  '/tools/content-definitions/property-data-types/list';
+const CONTENT_DEFINITIONS_PROPERTY_GROUPS_LIST_ENDPOINT =
+  '/tools/content-definitions/property-groups/list';
+const CONTENT_DEFINITIONS_PROPERTY_GROUPS_GET_ENDPOINT =
+  '/tools/content-definitions/property-groups/get';
 // Opti API Endpoints
 const OPTIMIZELY_EDITORS_API_ENDPOINT = '/api/episerver/v3.0/editors';
 
@@ -239,19 +245,19 @@ export class OptiCMSContentDefinitionsAPIToolFunction extends Function {
       return new Response(200, { status: 'healthy', tool: 'OptiCMSContentDefinitionsAPITool' });
     }
 
-    if (this.request.path === '/tools/content-definitions/property-data-types/list') {
+    if (this.request.path === CONTENT_DEFINITIONS_PROPERTY_DATA_TYPES_LIST_ENDPOINT) {
       const params = this.extractParameters() as ListPropertyDataTypesParams;
       const json = await this.handleListPropertyDataTypes(params);
       return new Response(200, json);
     }
 
-    if (this.request.path === '/tools/content-definitions/property-groups/list') {
+    if (this.request.path === CONTENT_DEFINITIONS_PROPERTY_GROUPS_LIST_ENDPOINT) {
       const params = this.extractParameters() as GetPropertyGroupsParams;
       const json = await this.handleGetPropertyGroups(params);
       return new Response(200, json);
     }
 
-    if (this.request.path === '/tools/content-definitions/property-groups/get') {
+    if (this.request.path === CONTENT_DEFINITIONS_PROPERTY_GROUPS_GET_ENDPOINT) {
       const params = this.extractParameters() as GetPropertyGroupByNameParams;
       const json = await this.handleGetPropertyGroupByName(params);
       return new Response(200, json);
@@ -267,16 +273,16 @@ export class OptiCMSContentDefinitionsAPIToolFunction extends Function {
       return new Response(200, response);
     }
 
-    if (this.request.path === GET_EDITOR_DEFINITION_BY_TYPE_AND_UIHINT_ENDPOINT) {
-      // Expected: /content-definitions/editors/{dataType}/{uiHint}
-      const segments = this.request.path.split('/').filter(Boolean);
-      const dataType = segments[2];
-      const uiHint = segments[3];
+    if (this.request.path.startsWith(GET_EDITOR_DEFINITION_BY_TYPE_AND_UIHINT_ENDPOINT)) {
+      // Expected: /getEditorDefinitionByTypeAndUiHint/{dataType}/{uiHint}
+      const prefix = GET_EDITOR_DEFINITION_BY_TYPE_AND_UIHINT_ENDPOINT.replace(/\/$/, '/');
+      const remainder = this.request.path.slice(prefix.length);
+      const [dataType, uiHint] = remainder.split('/').filter(Boolean);
 
       if (!dataType || !uiHint) {
         return new Response(400, {
           message:
-            'Missing dataType or uiHint in path. Expected /content-definitions/editors/{dataType}/{uiHint}',
+            'Missing dataType or uiHint in path. Expected /getEditorDefinitionByTypeAndUiHint/{dataType}/{uiHint}',
         });
       }
 
@@ -360,7 +366,7 @@ export class OptiCMSContentDefinitionsAPIToolFunction extends Function {
     };
 
     return fetch(
-      `${credentials.cms_base_url}/api/episerver/v3.0/contenttypes/{id}/${parameters.id}`,
+      `${credentials.cms_base_url}/api/episerver/v3.0/contenttypes/${encodeURIComponent(parameters.id)}`,
       options,
     )
       .then((response) => response.json()) // am*** might need to manage non-200 responses
