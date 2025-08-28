@@ -12,6 +12,12 @@ const LIST_LANGUAGE_BRANCHES_ENDPOINT = '/getLanguageBranches';
 const GET_LANGUAGE_BRANCH_BY_NAME_ENDPOINT = '/getLanguageBranchByName';
 const LIST_EDITOR_DEFINITIONS_ENDPOINT = '/getEditorDefinitions';
 const GET_EDITOR_DEFINITION_BY_TYPE_AND_UIHINT_ENDPOINT = '/getEditorDefinitionByTypeAndUiHint/';
+const CONTENT_DEFINITIONS_PROPERTY_DATA_TYPES_LIST_ENDPOINT =
+  '/tools/content-definitions/property-data-types/list';
+const CONTENT_DEFINITIONS_PROPERTY_GROUPS_LIST_ENDPOINT =
+  '/tools/content-definitions/property-groups/list';
+const CONTENT_DEFINITIONS_PROPERTY_GROUPS_GET_ENDPOINT =
+  '/tools/content-definitions/property-groups/get';
 // Opti API Endpoints
 const OPTIMIZELY_EDITORS_API_ENDPOINT = '/api/episerver/v3.0/editors';
 
@@ -239,19 +245,19 @@ export class OptiCMSContentDefinitionsAPIToolFunction extends Function {
       return new Response(200, { status: 'healthy', tool: 'OptiCMSContentDefinitionsAPITool' });
     }
 
-    if (this.request.path === '/tools/content-definitions/property-data-types/list') {
+    if (this.request.path === CONTENT_DEFINITIONS_PROPERTY_DATA_TYPES_LIST_ENDPOINT) {
       const params = this.extractParameters() as ListPropertyDataTypesParams;
       const json = await this.handleListPropertyDataTypes(params);
       return new Response(200, json);
     }
 
-    if (this.request.path === '/tools/content-definitions/property-groups/list') {
+    if (this.request.path === CONTENT_DEFINITIONS_PROPERTY_GROUPS_LIST_ENDPOINT) {
       const params = this.extractParameters() as GetPropertyGroupsParams;
       const json = await this.handleGetPropertyGroups(params);
       return new Response(200, json);
     }
 
-    if (this.request.path === '/tools/content-definitions/property-groups/get') {
+    if (this.request.path === CONTENT_DEFINITIONS_PROPERTY_GROUPS_GET_ENDPOINT) {
       const params = this.extractParameters() as GetPropertyGroupByNameParams;
       const json = await this.handleGetPropertyGroupByName(params);
       return new Response(200, json);
