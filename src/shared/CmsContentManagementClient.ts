@@ -1,7 +1,7 @@
 import { storage } from '@zaiusinc/app-sdk';
 
 interface CmsApiSettings {
-  base_url: string;
+  cms_base_url: string;
   access_token?: string;
 }
 
@@ -13,16 +13,16 @@ export class CmsContentManagementClient {
   }
 
   public static async create(): Promise<CmsContentManagementClient> {
-    const raw = await storage.settings.get('cms_api');
+    const raw = await storage.settings.get('auth');
     const settings = raw as unknown as Partial<CmsApiSettings> | undefined;
-    if (!settings || typeof settings.base_url !== 'string') {
-      throw new Error('CMS API settings are missing. Please configure base_url in settings.');
+    if (!settings || typeof settings.cms_base_url !== 'string') {
+      throw new Error('CMS API settings are missing. Please configure cms_base_url in settings.');
     }
     return new CmsContentManagementClient(settings as CmsApiSettings);
   }
 
   public buildRoot(): string {
-    const base = this.settings.base_url.replace(/\/$/, '');
+    const base = this.settings.cms_base_url.replace(/\/$/, '');
     return `${base}/api/episerver/v3.0`.replace(/\/{2,}/g, '/').replace(':/', '://');
   }
 
