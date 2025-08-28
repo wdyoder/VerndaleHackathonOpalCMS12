@@ -1000,10 +1000,10 @@
   dependencies:
     ajv "^8.17.1"
 
-"@zaiusinc/app-sdk@^2.2.1":
-  version "2.2.1"
-  resolved "https://registry.yarnpkg.com/@zaiusinc/app-sdk/-/app-sdk-2.2.1.tgz#dbf7b9c91605b6cc34eb606b8403f64f17460a86"
-  integrity sha512-yub3aiF5qHZgbgwX3jbgFFlfktTl8pcMSo3970qrf+b2j3shyJMxQ7rFHVwo1B1G/wIuk9xq1x6gzyBQrzj4/A==
+"@zaiusinc/app-sdk@2.2.2":
+  version "2.2.2"
+  resolved "https://registry.yarnpkg.com/@zaiusinc/app-sdk/-/app-sdk-2.2.2.tgz#aa891cf119a783b5307c5621d567eb08caf1fcdf"
+  integrity sha512-3wq7LiVOGpR2KW7JZxVu+t+tKgAUq2dY4X4jesl/KSCNJV6smhX56w0/r+uTyYnOsrJa0wBOg+8hfS3BXH0+jg==
   dependencies:
     "@zaiusinc/app-forms-schema" "^2.0.0"
     ajv "^8.17.1"

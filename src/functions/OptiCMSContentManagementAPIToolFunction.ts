@@ -1,9 +1,39 @@
 import { logger, Function, Response } from '@zaiusinc/app-sdk';
 
+// Tool Endpoints
+const DISCOVERY_ENDPOINT = '/discovery';
+const HEALTH_ENDPOINT = '/health';
+const DELETE_CONTENT_ENDPOINT = '/deleteContent';
+const GET_CONTENT_ENDPOINT = '/getContent';
+const UPDATE_MEDIA_CONTENT_ENDPOINT = '/updateMediaContent';
+const MOVE_CONTENT_ENDPOINT = '/moveContent';
+const CREATE_CONTENT_ENDPOINT = '/createContent';
+const CREATE_OR_UPDATE_MEDIA_CONTENT_ENDPOINT = '/createOrUpdateMediaContent';
+const GET_CONTENT_STRUCTURE_ENDPOINT = '/getContentStructure';
+const GET_CONTENT_STRUCTURE_FROM_NODE_ENDPOINT = '/getContentStructureFromNode';
+
 // Define interfaces for the parameters of each function
-interface Tool1Parameters {
-  param1: string;
-  param2: number;
+interface DeleteContentParams {
+  contentIdentifier: string;
+}
+interface GetContentParams {
+  contentIdentifier: string;
+  acceptLanguage?: string;
+}
+interface UpdateMediaContentParams {
+  contentIdentifier: string;
+  fileName: string;
+  contentType: string;
+}
+interface ParentLink {
+  id?: number;
+  workId?: string;
+  guidValue?: string;
+  providerName?: string;
+}
+interface MoveContentParams {
+  contentIdentifier: string;
+  parentLink: ParentLink;
 }
 
 // Define Opal tool metadata  - list of tools and their parameters
@@ -47,10 +77,6 @@ export class OptiCMSContentManagementAPIToolFunction extends Function {
   public async perform(): Promise<Response> {
     if (this.request.path === '/discovery') {
       return new Response(200, discoveryPayload);
-    } else if (this.request.path === '/tools/greeting') {
-      const params = this.extractParameters() as Tool1Parameters;
-      const response =  this.tool1Handler(params);
-      return new Response(200, response);
     } else {
       return new Response(400, 'Invalid path');
     }
@@ -72,12 +98,5 @@ export class OptiCMSContentManagementAPIToolFunction extends Function {
   /**
    * The logic of the tool goes here.
    */
-  private async tool1Handler(parameters: Tool1Parameters) {
-    // implement your logic here
-
-    return {
-      output_value: 'Output from the tool'
-    };
-  }
 
 }
