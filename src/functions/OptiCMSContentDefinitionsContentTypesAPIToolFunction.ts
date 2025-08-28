@@ -27,33 +27,33 @@ interface Credentials {
 
 // Define Opal tool metadata  - list of tools and their parameters
 const discoveryPayload = {
-  'functions': [
+  functions: [
     {
-      'name': 'verndale_get_content_types',
-      'description': 'List all of the content types that are found by the CMS content definitions API.',
-      'parameters': [
-      ],
-      'endpoint': GET_CONTENT_TYPES_ENDPOINT,
-      'http_method': 'GET'
+      name: 'verndale_get_content_types',
+      description:
+        'List all of the content types that are found by the CMS content definitions API.',
+      parameters: [],
+      endpoint: GET_CONTENT_TYPES_ENDPOINT,
+      http_method: 'GET',
     },
     {
-      'name': 'verndale_get_content_type_by_id',
+      name: 'verndale_get_content_type_by_id',
       // eslint-disable-next-line max-len
-      'description': 'Get all the details about a specific content type by its ID using the CMS content definitions API.',  // am*** maybe include example of the response
-      'parameters': [
+      description:
+        'Get all the details about a specific content type by its ID using the CMS content definitions API.', // am*** maybe include example of the response
+      parameters: [
         {
-          'name': 'id',
-          'type': 'string',
-          'required': true,
-          'description': 'The ID of the content type to retrieve from the CMS'
-        }
+          name: 'id',
+          type: 'string',
+          required: true,
+          description: 'The ID of the content type to retrieve from the CMS',
+        },
       ],
-      'endpoint': GET_CONTENT_TYPE_BY_ID_ENDPOINT,
-      'http_method': 'GET'
-    }
-  ]
+      endpoint: GET_CONTENT_TYPE_BY_ID_ENDPOINT,
+      http_method: 'GET',
+    },
+  ],
 };
-
 
 /**
  * class that implements the Opal tool functions. Requirements:
@@ -62,9 +62,7 @@ const discoveryPayload = {
  * - Name must match the file name
  */
 export class OptiCMSContentDefinitionsContentTypesAPIToolFunction extends Function {
-
   public async perform(): Promise<Response> {
-
     if (this.request.path === DISCOVERY_ENDPOINT) {
       return new Response(200, discoveryPayload);
     }
@@ -72,8 +70,8 @@ export class OptiCMSContentDefinitionsContentTypesAPIToolFunction extends Functi
     if (this.request.path === GET_CONTENT_TYPES_ENDPOINT) {
       const params = this.extractParameters() as GetContentTypesParameter;
       // am*** need to extract to a function
-      const credentials = await storage.settings.get('auth').then((s) => s) as Credentials;
-      const response =  await this.getContentTypes(params, credentials);
+      const credentials = (await storage.settings.get('auth').then((s) => s)) as Credentials;
+      const response = await this.getContentTypes(params, credentials);
 
       logger.info('response from getContentTypes: ', response);
 
@@ -83,8 +81,8 @@ export class OptiCMSContentDefinitionsContentTypesAPIToolFunction extends Functi
     if (this.request.path === GET_CONTENT_TYPE_BY_ID_ENDPOINT) {
       const params = this.extractParameters() as GetContentTypeByIdParameter;
       // am*** need to extract to a function
-      const credentials = await storage.settings.get('auth').then((s) => s) as Credentials;
-      const response =  await this.getContentTypeById(params, credentials);
+      const credentials = (await storage.settings.get('auth').then((s) => s)) as Credentials;
+      const response = await this.getContentTypeById(params, credentials);
 
       logger.info('response from getContentTypeById: ', response);
 
@@ -98,15 +96,14 @@ export class OptiCMSContentDefinitionsContentTypesAPIToolFunction extends Functi
     // Extract parameters from the request body
     if (this.request.bodyJSON && this.request.bodyJSON.parameters) {
       // Standard format: { "parameters": { ... } }
-      logger.info('Extracted parameters from \'parameters\' key:', this.request.bodyJSON.parameters);
+      logger.info("Extracted parameters from 'parameters' key:", this.request.bodyJSON.parameters);
       return this.request.bodyJSON.parameters;
     }
 
     // Fallback for direct testing: { "name": "value" }
-    logger.warn('\'parameters\' key not found in request body. Using body directly.');
+    logger.warn("'parameters' key not found in request body. Using body directly.");
     return this.request.bodyJSON;
   }
-
 
   /**
    * The logic of the tool goes here.
@@ -117,14 +114,13 @@ export class OptiCMSContentDefinitionsContentTypesAPIToolFunction extends Functi
   }
 
   private async getContentTypes(parameters: GetContentTypesParameter, credentials: Credentials) {
-
     logger.info('calling get-content-types...');
 
     const options = {
       method: 'GET',
       headers: {
         accept: 'application/json',
-      }
+      },
     };
 
     return fetch(`${credentials.cms_base_url}/api/episerver/v3.0/contenttypes`, options)
@@ -133,7 +129,7 @@ export class OptiCMSContentDefinitionsContentTypesAPIToolFunction extends Functi
         return response.json();
       })
       .then((data) => ({
-        output_value: data
+        output_value: data,
       }))
       .catch((error) => {
         console.error('Error fetching data:', error);
@@ -141,19 +137,24 @@ export class OptiCMSContentDefinitionsContentTypesAPIToolFunction extends Functi
       });
   }
 
-  private async getContentTypeById(parameters: GetContentTypeByIdParameter, credentials: Credentials) {
-
+  private async getContentTypeById(
+    parameters: GetContentTypeByIdParameter,
+    credentials: Credentials,
+  ) {
     const options = {
       method: 'GET',
       headers: {
         accept: 'application/json',
-      }
+      },
     };
 
-    return fetch(`${credentials.cms_base_url}/api/episerver/v3.0/contenttypes/{id}/${parameters.id}`, options)
-      .then((response) => response.json())  // am*** might need to manage non-200 responses
+    return fetch(
+      `${credentials.cms_base_url}/api/episerver/v3.0/contenttypes/{id}/${parameters.id}`,
+      options,
+    )
+      .then((response) => response.json()) // am*** might need to manage non-200 responses
       .then((data) => ({
-        output_value: data
+        output_value: data,
       }))
       .catch((error) => {
         console.error('Error fetching data:', error);

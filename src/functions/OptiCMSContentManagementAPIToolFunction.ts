@@ -8,28 +8,29 @@ interface Tool1Parameters {
 
 // Define Opal tool metadata  - list of tools and their parameters
 const discoveryPayload = {
-  'functions': [
+  functions: [
     {
-      'name': 'tool1', // tool name will show on the list in Opal UI
-      'description': 'Description of the tool', // description - tells Opal what the tool does
-      'parameters': [ // parameters
+      name: 'tool1', // tool name will show on the list in Opal UI
+      description: 'Description of the tool', // description - tells Opal what the tool does
+      parameters: [
+        // parameters
         {
-          'name': 'param1',
-          'type': 'string',
-          'description': 'Text param',
-          'required': true
+          name: 'param1',
+          type: 'string',
+          description: 'Text param',
+          required: true,
         },
         {
-          'name': 'param2',
-          'type': 'number',
-          'description': 'Numeric param',
-          'required': false
-        }
+          name: 'param2',
+          type: 'number',
+          description: 'Numeric param',
+          required: false,
+        },
       ],
-      'endpoint': '/tools/greeting',
-      'http_method': 'POST'
-    }
-  ]
+      endpoint: '/tools/greeting',
+      http_method: 'POST',
+    },
+  ],
 };
 
 /**
@@ -39,7 +40,6 @@ const discoveryPayload = {
  * - Name must match the file name
  */
 export class OptiCMSContentManagementAPIToolFunction extends Function {
-
   /**
    * Processing the request from Opal
    * Add your logic here to handle every tool declared in the discoveryPayload.
@@ -49,7 +49,7 @@ export class OptiCMSContentManagementAPIToolFunction extends Function {
       return new Response(200, discoveryPayload);
     } else if (this.request.path === '/tools/greeting') {
       const params = this.extractParameters() as Tool1Parameters;
-      const response =  this.tool1Handler(params);
+      const response = this.tool1Handler(params);
       return new Response(200, response);
     } else {
       return new Response(400, 'Invalid path');
@@ -60,11 +60,11 @@ export class OptiCMSContentManagementAPIToolFunction extends Function {
     // Extract parameters from the request body
     if (this.request.bodyJSON && this.request.bodyJSON.parameters) {
       // Standard format: { "parameters": { ... } }
-      logger.info('Extracted parameters from \'parameters\' key:', this.request.bodyJSON.parameters);
+      logger.info("Extracted parameters from 'parameters' key:", this.request.bodyJSON.parameters);
       return this.request.bodyJSON.parameters;
     } else {
       // Fallback for direct testing: { "name": "value" }
-      logger.warn('\'parameters\' key not found in request body. Using body directly.');
+      logger.warn("'parameters' key not found in request body. Using body directly.");
       return this.request.bodyJSON;
     }
   }
@@ -76,8 +76,7 @@ export class OptiCMSContentManagementAPIToolFunction extends Function {
     // implement your logic here
 
     return {
-      output_value: 'Output from the tool'
+      output_value: 'Output from the tool',
     };
   }
-
 }

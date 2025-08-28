@@ -8,10 +8,9 @@ import {
   Request,
   storage,
   SubmittedFormData,
-  functions
+  functions,
 } from '@zaiusinc/app-sdk';
 import { CMSAuthSection } from '../data/data';
-
 
 export class Lifecycle extends AppLifecycle {
   public async onInstall(): Promise<LifecycleResult> {
@@ -21,7 +20,7 @@ export class Lifecycle extends AppLifecycle {
       const functionUrls = await App.functions.getEndpoints();
       await App.storage.settings.put('instructions', {
         opal_content_definitions_tool_url: `${functionUrls.opal_content_definitions_tool}/discovery`,
-        opal_content_management_tool_url: `${functionUrls.opal_content_management_tool}/discovery`
+        opal_content_management_tool_url: `${functionUrls.opal_content_management_tool}/discovery`,
       });
 
       return { success: true };
@@ -38,7 +37,7 @@ export class Lifecycle extends AppLifecycle {
   public async onSettingsForm(
     section: string,
     action: string,
-    formData: SubmittedFormData
+    formData: SubmittedFormData,
   ): Promise<LifecycleSettingsResult> {
     const result = new LifecycleSettingsResult();
     try {
@@ -46,9 +45,9 @@ export class Lifecycle extends AppLifecycle {
        * example of handling username/password auth section
        */
       if (section === 'auth' && action === 'authorize') {
-        await storage.settings.put<CMSAuthSection>(section, {...formData, integrated: true});
+        await storage.settings.put<CMSAuthSection>(section, { ...formData, integrated: true });
         // validate the credentials here, e.g. by making an API call
-        const options = {method: 'GET', headers: {accept: 'application/json'}};
+        const options = { method: 'GET', headers: { accept: 'application/json' } };
         let success = false;
         try {
           const baseUrl = formData.cms_base_url;
@@ -63,7 +62,10 @@ export class Lifecycle extends AppLifecycle {
         if (success) {
           result.addToast('success', 'Validation successful!');
         } else {
-          result.addToast('warning', 'Your credentials were not accepted. Please check them and try again.');
+          result.addToast(
+            'warning',
+            'Your credentials were not accepted. Please check them and try again.',
+          );
         }
       } else {
         result.addToast('warning', 'Unexpected action received.');
@@ -73,14 +75,14 @@ export class Lifecycle extends AppLifecycle {
     } catch {
       return result.addToast(
         'danger',
-        'Sorry, an unexpected error occurred. Please try again in a moment.'
+        'Sorry, an unexpected error occurred. Please try again in a moment.',
       );
     }
   }
 
   public async onAuthorizationRequest(
     _section: string,
-    _formData: SubmittedFormData
+    _formData: SubmittedFormData,
   ): Promise<LifecycleSettingsResult> {
     // example: handling OAuth authorization request
     const result = new LifecycleSettingsResult();
@@ -108,10 +110,7 @@ export class Lifecycle extends AppLifecycle {
     return result.addToast('danger', 'Sorry, OAuth is not supported.');
   }
 
-  public async onAuthorizationGrant(
-    _request: Request
-  ): Promise<AuthorizationGrantResult> {
-
+  public async onAuthorizationGrant(_request: Request): Promise<AuthorizationGrantResult> {
     /* example: handling OAuth authorization grant
 
     // make sure to add CLIENT_ID, CLIENT_SECRET, and DEVELOPER_TOKEN to your .env file
@@ -167,10 +166,7 @@ export class Lifecycle extends AppLifecycle {
     }
     */
 
-    return new AuthorizationGrantResult('').addToast(
-      'danger',
-      'Sorry, OAuth is not supported.'
-    );
+    return new AuthorizationGrantResult('').addToast('danger', 'Sorry, OAuth is not supported.');
   }
 
   public async onUpgrade(_fromVersion: string): Promise<LifecycleResult> {
@@ -180,14 +176,12 @@ export class Lifecycle extends AppLifecycle {
     const functionUrls = await App.functions.getEndpoints();
     await App.storage.settings.put('instructions', {
       opal_content_definitions_tool_url: `${functionUrls.opal_content_definitions_tool}/discovery`,
-      opal_content_management_tool_url: `${functionUrls.opal_content_management_tool}/discovery`
+      opal_content_management_tool_url: `${functionUrls.opal_content_management_tool}/discovery`,
     });
     return { success: true };
   }
 
-  public async onFinalizeUpgrade(
-    _fromVersion: string
-  ): Promise<LifecycleResult> {
+  public async onFinalizeUpgrade(_fromVersion: string): Promise<LifecycleResult> {
     // TODO: any logic required when finalizing an upgrade from a previous version
     // At this point, new webhook URLs have been created for any new functions in this version
     return { success: true };
