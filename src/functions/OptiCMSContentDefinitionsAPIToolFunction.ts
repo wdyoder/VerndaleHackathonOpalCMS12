@@ -67,7 +67,7 @@ interface GetEditorDefinitionParameters {
 
 // Define Opal tool metadata  - list of tools and their parameters
 const discoveryPayload = {
-  'functions': [
+  functions: [
     {
       'name': 'verndale_get_content_types',
       'description': 'List all of the content types that are found by the CMS content definitions API.',
@@ -301,7 +301,7 @@ export class OptiCMSContentDefinitionsAPIToolFunction extends Function {
     // Extract parameters from the request body
     if (this.request.bodyJSON && this.request.bodyJSON.parameters) {
       // Standard format: { "parameters": { ... } }
-      logger.info('Extracted parameters from \'parameters\' key:', this.request.bodyJSON.parameters);
+      logger.info("Extracted parameters from 'parameters' key:", this.request.bodyJSON.parameters);
       return this.request.bodyJSON.parameters;
     }
 

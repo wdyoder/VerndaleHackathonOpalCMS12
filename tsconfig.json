@@ -21,6 +21,6 @@
     "resolveJsonModule": true,
     "noUnusedLocals": false, // off for convenience, enable to enforce cleaner code
     "noUnusedParameters": false, // off for convenience, enable to enforce cleaner code
-    "noImplicitAny": false  // off for convenience, recommended value is true to enforce types and reduce bugs
+    "noImplicitAny": false // off for convenience, recommended value is true to enforce types and reduce bugs
   }
 }

@@ -16,11 +16,13 @@ Finally, check out the [documentation](https://docs.developers.optimizely.com/op
 
 You can use any test framework you like, but Jest comes pre-installed with an Optimizely Connect Platform app.
 To run your unit tests, just run:
+
 ```
 yarn test
 ```
 
 Before you upload an app to Optimizely Connect Platform, you can validate your app package to ensure it's ready for upload.
+
 ```
 yarn validate
 ```
