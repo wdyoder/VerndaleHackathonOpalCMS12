@@ -14,11 +14,13 @@ sections:
         label: Opal Tool URL for CMS Content Management API
         disabled: true
         help: Paste the URL below into your Opal tool settings to enable the CMS Content Management API tool.
+
   - key: auth
     label: Authentication
     elements:
       - type: instructions
         text: CMS Connection Information
+
       - type: text
         key: cms_base_url
         label: CMS Base URL
@@ -26,20 +28,36 @@ sections:
         required: true
         help: The base URL of your CMS instance (e.g., https://your-cms-instance.com)
         hint: https://your-cms-instance.com
+
+      # (kept) Original API-key style fields, no longer required so they don't block Basic Auth
       - type: text
         key: cms_client_id
         label: CMS Client ID
         disabled: false
-        required: true
-        help: The Client ID for your CMS instance
+        required: false
+        help: The Client ID for your CMS instance (optional if using Basic Auth)
         hint: your-client-id
+
       - type: secret
         key: cms_api_key
         label: CMS API Key
         disabled: false
+        required: false
+        help: The API Key for your CMS instance (optional if using Basic Auth)
+
+      # (added) Basic Auth fields
+      - type: text
+        key: cms_username
+        label: Username (email)
+        disabled: false
         required: true
-        help: The API Key for your CMS instance
-      - type: button
-        label: Authorize
-        style: primary
-        action: authorize
+        help: The CMS username for Basic Authentication
+
+      - type: secret
+        key: cms_password
+        label: Password
+        disabled: false
+        required: true
+        help: The CMS password (stored securely)
+
+      # (added) Optional cookie if your endpoint needs it (e.g., anti-forgery
