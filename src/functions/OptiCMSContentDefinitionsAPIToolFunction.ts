@@ -267,16 +267,16 @@ export class OptiCMSContentDefinitionsAPIToolFunction extends Function {
       return new Response(200, response);
     }
 
-    if (this.request.path === GET_EDITOR_DEFINITION_BY_TYPE_AND_UIHINT_ENDPOINT) {
-      // Expected: /content-definitions/editors/{dataType}/{uiHint}
-      const segments = this.request.path.split('/').filter(Boolean);
-      const dataType = segments[2];
-      const uiHint = segments[3];
+    if (this.request.path.startsWith(GET_EDITOR_DEFINITION_BY_TYPE_AND_UIHINT_ENDPOINT)) {
+      // Expected: /getEditorDefinitionByTypeAndUiHint/{dataType}/{uiHint}
+      const prefix = GET_EDITOR_DEFINITION_BY_TYPE_AND_UIHINT_ENDPOINT.replace(/\/$/, '/');
+      const remainder = this.request.path.slice(prefix.length);
+      const [dataType, uiHint] = remainder.split('/').filter(Boolean);
 
       if (!dataType || !uiHint) {
         return new Response(400, {
           message:
-            'Missing dataType or uiHint in path. Expected /content-definitions/editors/{dataType}/{uiHint}',
+            'Missing dataType or uiHint in path. Expected /getEditorDefinitionByTypeAndUiHint/{dataType}/{uiHint}',
         });
       }
 
@@ -360,7 +360,7 @@ export class OptiCMSContentDefinitionsAPIToolFunction extends Function {
     };
 
     return fetch(
-      `${credentials.cms_base_url}/api/episerver/v3.0/contenttypes/{id}/${parameters.id}`,
+      `${credentials.cms_base_url}/api/episerver/v3.0/contenttypes/${encodeURIComponent(parameters.id)}`,
       options,
     )
       .then((response) => response.json()) // am*** might need to manage non-200 responses

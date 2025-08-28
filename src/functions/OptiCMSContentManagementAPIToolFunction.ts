@@ -299,7 +299,10 @@ export class OptiCMSContentManagementAPIToolFunction extends Function {
 
   private buildManagementUrl(client: CmsContentManagementClient, path: string): string {
     const root = client.buildRoot();
-    return `${root}/contentmanagement/${path}`.replace(/\/{2,}/g, '/');
+    // Safely join base and path without collapsing the URL scheme
+    const base = root.endsWith('/') ? root : `${root}/`;
+    const cleanPath = `contentmanagement/${path}`.replace(/^\/+/, '');
+    return new URL(cleanPath, base).toString();
   }
 
   private async deleteContent(
@@ -446,12 +449,21 @@ export class OptiCMSContentManagementAPIToolFunction extends Function {
 
   private async getContentStructureRoot(): Promise<{ status: number; body: unknown }> {
     const client = await this.getClient();
-    const url = `${client.buildRoot()}/contentstructure`.replace(/\/{2,}/g, '/');
-    const resp = await fetch(url, { method: 'GET', headers: client.buildHeaders() });
-    const body = await (resp.headers.get('content-type')?.includes('application/json')
-      ? resp.json()
-      : resp.text());
-    return { status: resp.status, body };
+    const base = client.buildRoot().endsWith('/') ? client.buildRoot() : `${client.buildRoot()}/`;
+    const url = new URL('contentstructure/', base).toString();
+    try {
+      const resp = await fetch(url, { method: 'GET', headers: client.buildHeaders() });
+      const body = await (resp.headers.get('content-type')?.includes('application/json')
+        ? resp.json()
+        : resp.text());
+      return { status: resp.status, body };
+    } catch (error: any) {
+      logger.error('Content structure root fetch failed', { url, error: String(error) });
+      return {
+        status: 502,
+        body: { message: 'Failed to fetch content structure root', url, error: String(error) },
+      };
+    }
   }
 
   private async getContentStructureFromNode(params: {
@@ -461,14 +473,20 @@ export class OptiCMSContentManagementAPIToolFunction extends Function {
       return { status: 400, body: { message: "Missing required parameter 'root'" } };
     }
     const client = await this.getClient();
-    const url = `${client.buildRoot()}/contentstructure/${encodeURIComponent(params.root)}`.replace(
-      /\/{2,}/g,
-      '/',
-    );
-    const resp = await fetch(url, { method: 'GET', headers: client.buildHeaders() });
-    const body = await (resp.headers.get('content-type')?.includes('application/json')
-      ? resp.json()
-      : resp.text());
-    return { status: resp.status, body };
+    const base = client.buildRoot().endsWith('/') ? client.buildRoot() : `${client.buildRoot()}/`;
+    const url = new URL(`contentstructure/${encodeURIComponent(params.root)}`, base).toString();
+    try {
+      const resp = await fetch(url, { method: 'GET', headers: client.buildHeaders() });
+      const body = await (resp.headers.get('content-type')?.includes('application/json')
+        ? resp.json()
+        : resp.text());
+      return { status: resp.status, body };
+    } catch (error: any) {
+      logger.error('Content structure fetch failed', { url, error: String(error) });
+      return {
+        status: 502,
+        body: { message: 'Failed to fetch content structure', url, error: String(error) },
+      };
+    }
   }
 }

@@ -23,7 +23,9 @@ export class CmsContentManagementClient {
 
   public buildRoot(): string {
     const base = this.settings.cms_base_url.replace(/\/$/, '');
-    return `${base}/api/episerver/v3.0`.replace(/\/{2,}/g, '/').replace(':/', '://');
+    const root = `${base}/api/episerver/v3.0`;
+    // Ensure correct scheme and single trailing slash behavior
+    return root.replace(':/', '://');
   }
 
   public buildHeaders(): Record<string, string> {
@@ -41,7 +43,9 @@ export class CmsContentManagementClient {
     { ok: true; status: number; data: unknown } | { ok: false; status: number; errorText: string }
   > {
     const root = this.buildRoot();
-    const url = new URL(`${root}/${path}`.replace(/\/{2,}/g, '/'));
+    const base = root.endsWith('/') ? root : `${root}/`;
+    const cleanPath = String(path).replace(/^\/+/, '');
+    const url = new URL(cleanPath, base);
     if (query) {
       Object.entries(query).forEach(([k, v]) => {
         if (v !== undefined && v !== null) url.searchParams.set(k, String(v));
