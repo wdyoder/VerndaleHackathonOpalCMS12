@@ -310,7 +310,8 @@ export class OptiCMSContentManagementAPIToolFunction extends Function {
     }
     const client = await this.getClient();
     const url = this.buildManagementUrl(client, encodeURIComponent(params.contentIdentifier));
-    const resp = await fetch(url, { method: 'DELETE', headers: client.buildHeaders() });
+    const headers = await client.buildHeaders();
+    const resp = await fetch(url, { method: 'DELETE', headers });
     const body = await (resp.headers.get('content-type')?.includes('application/json')
       ? resp.json()
       : resp.text());
@@ -322,7 +323,7 @@ export class OptiCMSContentManagementAPIToolFunction extends Function {
       return { status: 400, body: { message: "Missing required parameter 'contentIdentifier'" } };
     }
     const client = await this.getClient();
-    const headers = client.buildHeaders();
+    const headers = await client.buildHeaders();
     if (params.acceptLanguage) {
       headers['Accept-Language'] = params.acceptLanguage;
     }
@@ -348,7 +349,7 @@ export class OptiCMSContentManagementAPIToolFunction extends Function {
     }
     const client = await this.getClient();
     const url = this.buildManagementUrl(client, encodeURIComponent(params.contentIdentifier));
-    const headers = client.buildHeaders();
+    const headers = await client.buildHeaders();
     headers['Content-Type'] = params.contentType;
     headers['Content-Disposition'] = `attachment; filename="${params.fileName}"`;
     const body = Buffer.from(params.dataBase64, 'base64');
@@ -371,7 +372,7 @@ export class OptiCMSContentManagementAPIToolFunction extends Function {
       client,
       `${encodeURIComponent(params.contentIdentifier)}/move`,
     );
-    const headers = { ...client.buildHeaders(), 'Content-Type': 'application/json' };
+    const headers = { ...(await client.buildHeaders()), 'Content-Type': 'application/json' };
     const resp = await fetch(url, {
       method: 'POST',
       headers,
@@ -391,7 +392,7 @@ export class OptiCMSContentManagementAPIToolFunction extends Function {
     }
     const client = await this.getClient();
     const url = this.buildManagementUrl(client, '');
-    const headers = { ...client.buildHeaders(), 'Content-Type': 'application/json' };
+    const headers = { ...(await client.buildHeaders()), 'Content-Type': 'application/json' };
     const resp = await fetch(url, {
       method: 'POST',
       headers,
@@ -420,8 +421,9 @@ export class OptiCMSContentManagementAPIToolFunction extends Function {
 
     // Manually build multipart/form-data body to avoid DOM lib dependency
     const boundary = `----opalcms-${Math.random().toString(36).slice(2)}`;
+    const baseHeaders = await client.buildHeaders();
     const headers = {
-      ...client.buildHeaders(),
+      ...baseHeaders,
       'Content-Type': `multipart/form-data; boundary=${boundary}`,
     };
 
@@ -447,7 +449,8 @@ export class OptiCMSContentManagementAPIToolFunction extends Function {
   private async getContentStructureRoot(): Promise<{ status: number; body: unknown }> {
     const client = await this.getClient();
     const url = `${client.buildRoot()}/contentstructure`.replace(/\/{2,}/g, '/');
-    const resp = await fetch(url, { method: 'GET', headers: client.buildHeaders() });
+    const headers = await client.buildHeaders();
+    const resp = await fetch(url, { method: 'GET', headers });
     const body = await (resp.headers.get('content-type')?.includes('application/json')
       ? resp.json()
       : resp.text());
@@ -465,7 +468,8 @@ export class OptiCMSContentManagementAPIToolFunction extends Function {
       /\/{2,}/g,
       '/',
     );
-    const resp = await fetch(url, { method: 'GET', headers: client.buildHeaders() });
+    const headers = await client.buildHeaders();
+    const resp = await fetch(url, { method: 'GET', headers });
     const body = await (resp.headers.get('content-type')?.includes('application/json')
       ? resp.json()
       : resp.text());

@@ -1,37 +1,42 @@
-import { storage } from '@zaiusinc/app-sdk';
-
-interface CmsApiSettings {
-  cms_base_url: string;
-  access_token?: string;
-}
+import { CMSAuthSection, getCMSecret, getSettings } from '../data/data';
 
 export class CmsContentManagementClient {
-  private readonly settings: CmsApiSettings;
+  private readonly settings: CMSAuthSection;
 
-  private constructor(settings: CmsApiSettings) {
+  private constructor(settings: CMSAuthSection) {
     this.settings = settings;
   }
 
   public static async create(): Promise<CmsContentManagementClient> {
-    const raw = await storage.settings.get('auth');
-    const settings = raw as unknown as Partial<CmsApiSettings> | undefined;
+    const settings = await getSettings();
     if (!settings || typeof settings.cms_base_url !== 'string') {
       throw new Error('CMS API settings are missing. Please configure cms_base_url in settings.');
     }
-    return new CmsContentManagementClient(settings as CmsApiSettings);
+    return new CmsContentManagementClient(settings);
   }
 
   public buildRoot(): string {
-    const base = this.settings.cms_base_url.replace(/\/$/, '');
+    const baseUrl = this.settings.cms_base_url ?? '';
+    const base = baseUrl.replace(/\/$/, '');
     return `${base}/api/episerver/v3.0`.replace(/\/{2,}/g, '/').replace(':/', '://');
   }
 
-  public buildHeaders(): Record<string, string> {
+  public async buildHeaders(): Promise<Record<string, string>> {
     const headers: Record<string, string> = { Accept: 'application/json' };
-    if (this.settings.access_token) {
-      headers.Authorization = `Bearer ${this.settings.access_token}`;
+    // if (this.settings.access_token) {
+    //   headers.Authorization = `Bearer ${this.settings.access_token}`;
+    // }
+    if (this.settings.cms_cm_client_id && this.settings.cms_cm_client_secret) {
+      headers.Authorization = await this.buildBasicAuth();
     }
     return headers;
+  }
+  /** Build the "Authorization: Basic xxxxx" header value */
+  public async buildBasicAuth(): Promise<string> {
+    const username = this.settings.cms_cm_client_id;
+    const cm_key = await getCMSecret();
+    const creds = `${username}:${cm_key}`;
+    return `Basic ${Buffer.from(creds, 'utf8').toString('base64')}`;
   }
 
   public async getJson(
@@ -47,7 +52,8 @@ export class CmsContentManagementClient {
         if (v !== undefined && v !== null) url.searchParams.set(k, String(v));
       });
     }
-    const resp = await fetch(url.toString(), { method: 'GET', headers: this.buildHeaders() });
+    const headers = await this.buildHeaders();
+    const resp = await fetch(url.toString(), { method: 'GET', headers });
     if (!resp.ok) {
       return { ok: false, status: resp.status, errorText: await resp.text() };
     }

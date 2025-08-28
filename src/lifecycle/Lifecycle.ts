@@ -43,74 +43,73 @@ export class Lifecycle extends AppLifecycle {
   ): Promise<LifecycleSettingsResult> {
     const result = new LifecycleSettingsResult();
     try {
-      /if (section === 'auth' && action === 'authorize') {
-      // read fields from the submitted form
-      const baseUrl = String(formData.cms_base_url || '');
-      const username = String(formData.cms_username || '');
-      const cookie = formData.cms_cookie ? String(formData.cms_cookie) : '';
+      if (section === 'auth' && action === 'authorize') {
+        // read fields from the submitted form
+        const baseUrl = String(formData.cms_base_url || '');
+        const contentDeliveryClientId = String(formData.cms_cd_client_id || '');
+        const contentManagementClientId = String(formData.cms_cm_client_id || '');
 
-      // we’ll store the password in the secrets store under this key
-      const secretKey = 'cms_basic_password';
+        // we’ll store the password in the secrets store under this key
+        const contentDeliverySecretKey = 'cms_cd_api_key';
+        const contentManagementSecretKey = 'cms_cm_api_key';
 
-      // if a new password was submitted, update secrets
-      const incomingPassword = formData.cms_password ? String(formData.cms_password) : undefined;
-      if (incomingPassword) {
-        await storage.secrets.put<{ password: string }>(secretKey, { password: incomingPassword });
-      }
+        // store secret values to the secrets store
+        const contentDeliverySecret = formData.cms_cd_api_key ? String(formData.cms_cd_api_key) : undefined;
+        if (contentDeliverySecret) {
+          await storage.secrets.put<{ password: string }>(contentDeliverySecretKey, { password: contentDeliverySecret });
+        }
+        const contentManagementSecret = formData.cms_cm_api_key ? String(formData.cms_cm_api_key) : undefined;
+        if (contentManagementSecret) {
+          await storage.secrets.put<{ password: string }>(contentManagementSecretKey, { password: contentManagementSecret });
+        }
 
-      // make sure there is a password present (new or previously saved)
-      const secret = await storage.secrets.get<{ password: string }>(secretKey);
-      if (!secret?.password) {
-        result.addToast('warning', 'Please provide a CMS password.');
+        // persist non-secret config to settings (reference the secret by key)
+        await storage.settings.put<CMSAuthSection>(section, {
+          cms_base_url: baseUrl,
+          cms_cd_client_id: contentDeliveryClientId,
+          cms_cd_api_key: contentDeliverySecretKey,
+          cms_cm_client_id: contentManagementClientId,
+          cms_cm_api_key: contentManagementSecretKey,
+        });
+
+        // ---- Validate the credentials via a small GET 
+        // Build URL and Basic header
+        const url = `${baseUrl.replace(/\/+$/, '')}/api/episerver/v3.0/contenttypes?top=1&includeSystemTypes=false`;
+        const auth = `Basic ${Buffer.from(`${contentDeliveryClientId}:${contentDeliverySecret}`, 'utf8').toString('base64')}`;
+
+        const headers: Record<string, string> = {
+          accept: 'application/json',
+          Authorization: auth,
+        };
+
+        let success = false;
+        try {
+          const res = await fetch(url, { method: 'GET', headers });
+          success = res.ok;
+          if (!success) {
+            logger.warn('CMS validation failed', res.status, await res.text().catch(() => ''));
+          }
+        } catch (err) {
+          logger.error('Error during CMS validation:', err);
+          success = false;
+        }
+
+        if (success) {
+          result.addToast('success', 'Validation successful!');
+        } else {
+          result.addToast('warning', 'Your credentials were not accepted. Please check and try again.');
+        }
+
         return result;
       }
-
-      // persist non-secret config to settings (reference the secret by key)
-      await storage.settings.put<CMSAuthSection>(section, {
-        cms_base_url: baseUrl,
-        cms_username: username,
-        cms_password_secret_key: secretKey,
-        cms_cookie: cookie,
-        integrated: true,
-      });
-
-      // ---- Validate the credentials via a small GET (mirrors your curl target family)
-      // Build URL and Basic header
-      const url = `${baseUrl.replace(/\/+$/, '')}/api/episerver/v3.0/contenttypes?top=1&includeSystemTypes=false`;
-      const auth = `Basic ${Buffer.from(`${username}:${secret.password}`, 'utf8').toString('base64')}`;
-
-      const headers: Record<string, string> = {
-        accept: 'application/json',
-        Authorization: auth,
-      };
-      if (cookie) headers['Cookie'] = cookie;
-
-      let success = false;
-      try {
-        const res = await fetch(url, { method: 'GET', headers });
-        success = res.ok;
-        if (!success) {
-          logger.warn('CMS validation failed', res.status, await res.text().catch(() => ''));
-        }
-      } catch (err) {
-        logger.error('Error during CMS validation:', err);
-        success = false;
-      }
-
-      if (success) {
-        result.addToast('success', 'Validation successful!');
-      } else {
-        result.addToast('warning', 'Your credentials were not accepted. Please check and try again.');
-      }
-
-      return result;
-    }
-    catch {
+    } catch {
       return result.addToast(
         'danger',
         'Sorry, an unexpected error occurred. Please try again in a moment.',
       );
     }
+    // Ensure a return value for all code paths
+    return result;
   }
 
   public async onAuthorizationRequest(

@@ -31,33 +31,33 @@ sections:
 
       # (kept) Original API-key style fields, no longer required so they don't block Basic Auth
       - type: text
-        key: cms_client_id
-        label: CMS Client ID
+        key: cms_cd_client_id
+        label: CMS Content Definitions API Client ID
         disabled: false
-        required: false
-        help: The Client ID for your CMS instance (optional if using Basic Auth)
+        required: true
+        help: The Client ID used for the Content Definitions API
         hint: your-client-id
 
       - type: secret
-        key: cms_api_key
-        label: CMS API Key
+        key: cms_cd_api_key
+        label: CMS Content Definitions API Key
         disabled: false
-        required: false
-        help: The API Key for your CMS instance (optional if using Basic Auth)
+        required: true
+        help: The API Key for the Content Definitions API
 
       # (added) Basic Auth fields
       - type: text
-        key: cms_username
-        label: Username (email)
+        key: cms_cm_client_id
+        label: CMS Content Management API Client ID
         disabled: false
         required: true
-        help: The CMS username for Basic Authentication
+        help: The CMS username for the Content Management API
 
       - type: secret
-        key: cms_password
-        label: Password
+        key: cms_cm_api_key
+        label: CMS Content Management API Password
         disabled: false
         required: true
-        help: The CMS password (stored securely)
+        help: The CMS password
 
-      # (added) Optional cookie if your endpoint needs it (e.g., anti-forgery
+      # (added) Optional cookie if your endpoint needs it (e.g., anti-forgery token)
