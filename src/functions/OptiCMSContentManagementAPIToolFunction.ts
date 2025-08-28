@@ -6,6 +6,7 @@ const DISCOVERY_ENDPOINT = '/discovery';
 const HEALTH_ENDPOINT = '/health';
 const GET_CONTENT_STRUCTURE_FROM_NODE_ENDPOINT = '/getContentStructureFromNode';
 const CREATE_CONTENT_ENDPOINT = '/createContent';
+const CREATE_CONTENT_FROM_ASK_ENDPOINT = '/createContentFromAsk';
 
 // Define Opal tool metadata  - list of tools and their parameters
 const discoveryPayload = {
@@ -44,6 +45,46 @@ const discoveryPayload = {
         },
       ],
       endpoint: CREATE_CONTENT_ENDPOINT,
+      http_method: 'POST',
+    },
+    {
+      name: 'content-create-from-ask',
+      description:
+        'Create content from a natural language ask. The tool discovers content types, properties, and site structure to infer the payload.',
+      parameters: [
+        {
+          name: 'ask',
+          type: 'string',
+          description:
+            'Instruction, e.g., "find a content type to create a CTA card block under parent 4187 and set heading to Viva Opal"',
+          required: true,
+        },
+        {
+          name: 'discoveryRoot',
+          type: 'string',
+          description: 'Optional root id/guid to fetch partial content structure for context.',
+          required: false,
+        },
+        {
+          name: 'language',
+          type: 'string',
+          description: 'Language name (default: en).',
+          required: false,
+        },
+        {
+          name: 'status',
+          type: 'string',
+          description: "Workflow status (default: 'Published').",
+          required: false,
+        },
+        {
+          name: 'autoSelectParent',
+          type: 'boolean',
+          description: 'If true and parent is not provided, auto-select best candidate parent.',
+          required: false,
+        },
+      ],
+      endpoint: CREATE_CONTENT_FROM_ASK_ENDPOINT,
       http_method: 'POST',
     },
   ],
@@ -87,6 +128,18 @@ export class OptiCMSContentManagementAPIToolFunction extends Function {
       const params = this.extractParameters() as { payload: unknown; status?: string };
       const result = await this.createContent(params);
       logger.info('response from createContent: ', result);
+      return new Response(200, result);
+    }
+
+    if (this.request.path === CREATE_CONTENT_FROM_ASK_ENDPOINT) {
+      const params = this.extractParameters() as {
+        ask: string;
+        discoveryRoot?: string;
+        language?: string;
+        status?: string;
+      };
+      const result = await this.createContentFromAsk(params);
+      logger.info('response from createContentFromAsk: ', result);
       return new Response(200, result);
     }
 
@@ -197,5 +250,335 @@ export class OptiCMSContentManagementAPIToolFunction extends Function {
         console.error('Error creating content:', error);
         throw new Error('Failed to create content');
       });
+  }
+
+  // removed createContentSmart per request; create via natural-language ask instead
+
+  private async resolveContentType(
+    query: string,
+    credentials: Credentials,
+  ): Promise<{
+    baseType: string;
+    modelName: string;
+  }> {
+    const url = `${credentials.cms_base_url}/api/episerver/v3.0/contenttypes?includeSystemTypes=false`;
+    const headers: Record<string, string> = { accept: 'application/json' };
+    if (credentials.basic_username) {
+      const token = Buffer.from(
+        `${credentials.basic_username}:${credentials.basic_password ?? ''}`,
+      ).toString('base64');
+      headers.Authorization = `Basic ${token}`;
+    } else if (credentials.access_token) {
+      headers.Authorization = `Bearer ${credentials.access_token}`;
+    }
+
+    const list = await fetch(url, { method: 'GET', headers })
+      .then((r) => r.json())
+      .catch(() => [] as unknown[]);
+
+    const q = query.toLowerCase();
+    let match: any = Array.isArray(list)
+      ? list.find((t: any) => String(t.displayName ?? t.name ?? '').toLowerCase() === q)
+      : undefined;
+    if (!match && Array.isArray(list)) {
+      match = list.find((t: any) =>
+        String(t.displayName ?? t.name ?? '')
+          .toLowerCase()
+          .includes(q),
+      );
+    }
+
+    // Derive model name and base type heuristically
+    const modelName =
+      String(match?.name ?? match?.modelName ?? query)
+        .replace(/\s+/g, '')
+        .replace(/[^A-Za-z0-9_]/g, '') || query;
+    let baseType = 'Page';
+    const nameStr = String(match?.displayName ?? match?.name ?? '').toLowerCase();
+    if (nameStr.includes('block') || /block$/i.test(modelName)) baseType = 'Block';
+    if (nameStr.includes('media')) baseType = 'Media';
+    if (nameStr.includes('folder')) baseType = 'Folder';
+
+    return { baseType, modelName };
+  }
+
+  private buildAuthHeaders(credentials: Credentials): Record<string, string> {
+    const headers: Record<string, string> = { accept: 'application/json' };
+    if (credentials.basic_username) {
+      const token = Buffer.from(
+        `${credentials.basic_username}:${credentials.basic_password ?? ''}`,
+      ).toString('base64');
+      headers.Authorization = `Basic ${token}`;
+    } else if (credentials.access_token) {
+      headers.Authorization = `Bearer ${credentials.access_token}`;
+    }
+    return headers;
+  }
+
+  private async listAllContentTypes(credentials: Credentials): Promise<any[]> {
+    const baseUrl = `${credentials.cms_base_url}/api/episerver/v3.0/contenttypes?includeSystemTypes=false`;
+    const headers = this.buildAuthHeaders(credentials);
+    const all: any[] = [];
+    let url = baseUrl;
+    // Simple pagination via x-epi-continuation if present
+    // Some servers don’t use it; we’ll still work with a single page
+    while (true) {
+      const res = await fetch(url, { method: 'GET', headers });
+      const data = (await res.json()) as any[];
+      if (Array.isArray(data)) all.push(...data);
+      const cont = res.headers.get('x-epi-continuation');
+      if (!cont) break;
+      const u = new URL(baseUrl);
+      u.searchParams.set('x-epi-continuation', cont);
+      url = u.toString();
+    }
+    return all;
+  }
+
+  private async getStructureSnapshot(
+    credentials: Credentials,
+    root?: string,
+  ): Promise<Record<string, unknown>> {
+    const authHeaders = this.buildAuthHeaders(credentials);
+    if (!root) {
+      // try global root redirect endpoint
+      try {
+        const res = await fetch(`${credentials.cms_base_url}/api/episerver/v3.0/`, {
+          method: 'GET',
+          headers: authHeaders,
+          redirect: 'follow',
+        } as RequestInit);
+        const redirected =
+          res.url || `${credentials.cms_base_url}/api/episerver/v3.0/contentstructure/1`;
+        const match = redirected.match(/contentstructure\/([^/?#]+)/);
+        const fallbackRoot = match ? decodeURIComponent(match[1]) : '1';
+        return this.getStructureSnapshot(credentials, fallbackRoot);
+      } catch {
+        return {};
+      }
+    }
+    const url = `${credentials.cms_base_url}/api/episerver/v3.0/contentstructure/${encodeURIComponent(
+      root,
+    )}`;
+    try {
+      const res = await fetch(url, { method: 'GET', headers: authHeaders });
+      return (await res.json()) as Record<string, unknown>;
+    } catch {
+      return {};
+    }
+  }
+
+  private tokenize(text: string): string[] {
+    return String(text)
+      .toLowerCase()
+      .replace(/[^a-z0-9\s]/g, ' ')
+      .split(/\s+/)
+      .filter(Boolean);
+  }
+
+  private scoreContentType(ask: string, type: any): number {
+    const tokens = this.tokenize(ask);
+    const name = String(type.displayName ?? type.name ?? '').toLowerCase();
+    const propNames: string[] = Array.isArray(type.properties)
+      ? (type.properties as Array<Record<string, unknown>>).map((p: any) =>
+          String(p.name ?? p.displayName ?? '').toLowerCase(),
+        )
+      : [];
+    let score = 0;
+    tokens.forEach((t) => {
+      if (name.includes(t)) score += 3;
+      if (propNames.some((pn) => pn.includes(t))) score += 1;
+    });
+    if (tokens.includes('block') && /block/i.test(name)) score += 2;
+    if (tokens.includes('page') && /page/i.test(name)) score += 2;
+    if (tokens.includes('media') && /media/i.test(name)) score += 2;
+    return score;
+  }
+
+  private extractParentIdOrGuid(ask: string): { id?: number; guidValue?: string } | undefined {
+    const idMatch = ask.match(/parent\s*(?:link)?\s*(?:id)?\s*(\d{1,10})/i);
+    if (idMatch) return { id: Number(idMatch[1]) };
+    const guidMatch = ask.match(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i);
+    if (guidMatch) return { guidValue: guidMatch[0] } as { guidValue: string };
+    return undefined;
+  }
+
+  private extractQuotedStrings(ask: string): string[] {
+    const matches = (ask.match(/"([^"]+)"|'([^']+)'/g) || []) as string[];
+    return matches.map((m) => m.slice(1, -1));
+  }
+
+  private inferFieldsFromAsk(
+    ask: string,
+    targetProps: Array<{ name?: string; displayName?: string }>,
+  ): Record<string, unknown> {
+    const fields: Record<string, unknown> = {};
+    const quotes = this.extractQuotedStrings(ask);
+    const propKeys = targetProps.map((p) => String(p.name ?? p.displayName ?? ''));
+
+    const trySet = (key: string, value: unknown) => {
+      if (!fields[key]) fields[key] = { value };
+    };
+
+    // Heuristic mappings
+    if (quotes.length) {
+      // Heading/Title candidates
+      const primary = quotes[0];
+      const headingKey = propKeys.find((k) => /heading|title/i.test(k));
+      if (headingKey) trySet(headingKey, primary);
+    }
+    if (!Object.keys(fields).length && quotes.length) {
+      // Fallback: assign first quote to first string-like property
+      const firstProp = propKeys[0];
+      if (firstProp) trySet(firstProp, quotes[0]);
+    }
+
+    // Add anything explicitly like set <prop> to "value"
+    const setMatches = ask.match(/set\s+([a-z0-9_\s]+)\s+to\s+("[^"]+"|'[^']+')/gi) || [];
+    setMatches.forEach((m) => {
+      const [, k, v] = m.match(/set\s+([a-z0-9_\s]+)\s+to\s+("([^"]+)"|'([^']+)')/i) || [];
+      if (k && v) {
+        const candidate = propKeys.find(
+          (p) => p.toLowerCase().replace(/\s+/g, '') === k.toLowerCase().replace(/\s+/g, ''),
+        );
+        if (candidate) trySet(candidate, v.slice(1, -1));
+      }
+    });
+
+    return fields;
+  }
+
+  private async createContentFromAsk(parameters: {
+    ask: string;
+    discoveryRoot?: string;
+    language?: string;
+    status?: string;
+    autoSelectParent?: boolean;
+  }) {
+    if (!parameters?.ask) {
+      throw new Error("Missing required parameter 'ask'");
+    }
+
+    const credentials = (await storage.settings.get('auth').then((s) => s)) as Credentials;
+
+    // Gather context
+    const [types, structure] = await Promise.all([
+      this.listAllContentTypes(credentials),
+      this.getStructureSnapshot(credentials, parameters.discoveryRoot),
+    ]);
+
+    // Pick best content type
+    let best: any | undefined;
+    let bestScore = -1;
+    (types || []).forEach((t) => {
+      const score = this.scoreContentType(parameters.ask, t);
+      if (score > bestScore) {
+        best = t;
+        bestScore = score;
+      }
+    });
+    if (!best) {
+      throw new Error('Could not infer a suitable content type from the ask.');
+    }
+
+    // Build contentType array
+    const baseTypeGuess = /block/i.test(String(best.displayName ?? best.name ?? ''))
+      ? 'Block'
+      : 'Page';
+    const modelName = String(best.name ?? best.modelName ?? 'Content').replace(/\s+/g, '');
+    const contentTypeArr = [baseTypeGuess, modelName];
+
+    // Parent resolution
+    let parentLink = this.extractParentIdOrGuid(parameters.ask);
+    if (!parentLink) {
+      const proposals = this.proposeParents(structure, best);
+      if (!proposals.length) {
+        return {
+          output_value: {
+            message:
+              'Parent not provided and no suitable parents found. Please specify a parent id or guid.',
+            proposals: [],
+          },
+        };
+      }
+      if (parameters.autoSelectParent) {
+        parentLink = proposals[0].parentLink;
+      } else {
+        return {
+          output_value: {
+            message: 'Please choose a parent for the new content.',
+            proposals,
+          },
+        };
+      }
+    }
+
+    // Fields
+    const fields = this.inferFieldsFromAsk(parameters.ask, best.properties || []);
+
+    // Name
+    const nameFromQuote = this.extractQuotedStrings(parameters.ask)[0];
+    const name = nameFromQuote || String(best.displayName ?? modelName);
+
+    const payload = {
+      name,
+      language: { name: parameters.language ?? 'en' },
+      contentType: contentTypeArr,
+      parentLink,
+      status: parameters.status ?? 'Published',
+      ...fields,
+    };
+
+    return this.createContent({ payload });
+  }
+
+  private proposeParents(
+    structure: Record<string, unknown>,
+    contentType: any,
+  ): Array<{
+    idOrGuid: string;
+    name?: string;
+    score: number;
+    parentLink: { id?: number; guidValue?: string };
+  }> {
+    const items: Array<Record<string, any>> = Array.isArray((structure as any)?.children)
+      ? (((structure as any).children as Array<Record<string, any>>) ?? [])
+      : [];
+
+    const results: Array<{
+      idOrGuid: string;
+      name?: string;
+      score: number;
+      parentLink: { id?: number; guidValue?: string };
+    }> = [];
+
+    const desiredIsBlock = /block/i.test(String(contentType.displayName ?? contentType.name ?? ''));
+    const scoreItem = (node: Record<string, any>): number => {
+      const name = String(node.name ?? '').toLowerCase();
+      let s = 0;
+      if (desiredIsBlock && /block|widgets|components|assets|global/i.test(name)) s += 3;
+      if (/folder|container|library/i.test(name)) s += 1;
+      return s;
+    };
+
+    items.forEach((node) => {
+      const score = scoreItem(node);
+      if (score > 0) {
+        const id = node.id as number | undefined;
+        const guid = (node.guidValue as string | undefined) || (node.guid as string | undefined);
+        const parentLink = id ? { id } : guid ? { guidValue: guid } : undefined;
+        if (parentLink) {
+          results.push({
+            idOrGuid: String(id ?? guid),
+            name: node.name as string,
+            score,
+            parentLink,
+          });
+        }
+      }
+    });
+
+    results.sort((a, b) => b.score - a.score);
+    return results.slice(0, 5);
   }
 }
