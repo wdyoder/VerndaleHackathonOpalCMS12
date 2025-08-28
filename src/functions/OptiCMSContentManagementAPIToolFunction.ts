@@ -7,6 +7,7 @@ const HEALTH_ENDPOINT = '/health';
 const GET_CONTENT_STRUCTURE_FROM_NODE_ENDPOINT = '/getContentStructureFromNode';
 const CREATE_CONTENT_ENDPOINT = '/createContent';
 const CREATE_CONTENT_FROM_ASK_ENDPOINT = '/createContentFromAsk';
+const MOVE_CONTENT_ENDPOINT = '/moveContent';
 
 // Define Opal tool metadata  - list of tools and their parameters
 const discoveryPayload = {
@@ -99,6 +100,26 @@ const discoveryPayload = {
       endpoint: CREATE_CONTENT_FROM_ASK_ENDPOINT,
       http_method: 'POST',
     },
+    {
+      name: 'content-move',
+      description: 'Moves a content item from its current location to another parent.',
+      parameters: [
+        {
+          name: 'contentIdentifier',
+          type: 'string',
+          description: 'Content reference or unique identifier (id or guid) of the item to move.',
+          required: true,
+        },
+        {
+          name: 'parentLink',
+          type: 'object',
+          description: 'Destination parent link object: { id?: number; guidValue?: string }',
+          required: true,
+        },
+      ],
+      endpoint: MOVE_CONTENT_ENDPOINT,
+      http_method: 'POST',
+    },
   ],
 };
 
@@ -152,6 +173,16 @@ export class OptiCMSContentManagementAPIToolFunction extends Function {
       };
       const result = await this.createContentFromAsk(params);
       logger.info('response from createContentFromAsk: ', result);
+      return new Response(200, result);
+    }
+
+    if (this.request.path === MOVE_CONTENT_ENDPOINT) {
+      const params = this.extractParameters() as {
+        contentIdentifier: string;
+        parentLink: { id?: number; guidValue?: string };
+      };
+      const result = await this.moveContent(params);
+      logger.info('response from moveContent: ', result);
       return new Response(200, result);
     }
 
@@ -500,6 +531,23 @@ export class OptiCMSContentManagementAPIToolFunction extends Function {
 
     const credentials = (await storage.settings.get('auth').then((s) => s)) as Credentials;
 
+    // Move intent detection: if ask is to move existing content, delegate to move
+    const moveIntent = this.extractMoveIntent(parameters.ask);
+    if (moveIntent) {
+      if (!moveIntent.parentLink) {
+        return {
+          output_value: {
+            message:
+              'Move intent detected but destination parent not found. Please specify a target parent id or guid (e.g., "under parent 123" or a GUID).',
+          },
+        };
+      }
+      return this.moveContent({
+        contentIdentifier: moveIntent.contentIdentifier,
+        parentLink: moveIntent.parentLink,
+      });
+    }
+
     // Gather context
     const [types, structure] = await Promise.all([
       this.listAllContentTypes(credentials),
@@ -574,6 +622,91 @@ export class OptiCMSContentManagementAPIToolFunction extends Function {
     };
 
     return this.createContent({ payload });
+  }
+
+  private extractMoveIntent(ask: string):
+    | {
+        contentIdentifier: string;
+        parentLink?: { id?: number; guidValue?: string };
+      }
+    | undefined {
+    const text = String(ask);
+    const guidPattern = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i;
+
+    // Try to capture source identifier after the word "move"
+    let contentIdentifier: string | undefined;
+    const moveGuid = text.match(/move\s+(?:content\s+)?(${guidPattern.source})/i);
+    const moveId = text.match(/move\s+(?:content\s+)?(?:id\s*)?(\d{1,10})/i);
+    if (moveGuid && moveGuid[1]) contentIdentifier = moveGuid[1];
+    if (!contentIdentifier && moveId && moveId[1]) contentIdentifier = moveId[1];
+
+    if (!/\bmove\b/i.test(text) || !contentIdentifier) return undefined;
+
+    // Destination parent
+    let parentLink: { id?: number; guidValue?: string } | undefined;
+    const destGuid = text.match(
+      new RegExp(`(?:under|to)\\s+(?:parent\\s+)?(${guidPattern.source})`, 'i'),
+    );
+    const destId = text.match(/(?:under|to)\s+(?:parent\s+)?(?:id\s*)?(\d{1,10})/i);
+    if (destGuid && destGuid[1]) parentLink = { guidValue: destGuid[1] } as { guidValue: string };
+    else if (destId && destId[1]) parentLink = { id: Number(destId[1]) };
+
+    return { contentIdentifier, parentLink };
+  }
+
+  private async moveContent(parameters: {
+    contentIdentifier: string;
+    parentLink: { id?: number; guidValue?: string };
+  }) {
+    if (!parameters?.contentIdentifier) {
+      throw new Error("Missing required parameter 'contentIdentifier'");
+    }
+    if (
+      !parameters?.parentLink ||
+      (!parameters.parentLink.id && !parameters.parentLink.guidValue)
+    ) {
+      throw new Error("Missing required parameter 'parentLink' with either 'id' or 'guidValue'");
+    }
+
+    const credentials = (await storage.settings.get('auth').then((s) => s)) as Credentials;
+
+    const url = `${credentials.cms_base_url}/api/episerver/v3.0/contentmanagement/${encodeURIComponent(
+      parameters.contentIdentifier,
+    )}/move`;
+
+    const headers: Record<string, string> = {
+      accept: 'application/json',
+      'Content-Type': 'application/json',
+      'User-Agent': 'OpalCMS-App/1.0',
+      'Accept-Language': 'en',
+    };
+    if (credentials.basic_username) {
+      const token = Buffer.from(
+        `${credentials.basic_username}:${credentials.basic_password ?? ''}`,
+      ).toString('base64');
+      headers.Authorization = `Basic ${token}`;
+    } else if (credentials.access_token) {
+      headers.Authorization = `Bearer ${credentials.access_token}`;
+    }
+
+    const options = {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ parentLink: parameters.parentLink }),
+    } as const;
+
+    return fetch(url, options)
+      .then(async (response) => {
+        const contentType = response.headers.get('content-type') || '';
+        const data = contentType.includes('application/json')
+          ? await response.json()
+          : await response.text();
+        return { output_value: data } as { output_value: unknown };
+      })
+      .catch((error) => {
+        console.error('Error moving content:', error);
+        throw new Error('Failed to move content');
+      });
   }
 
   private proposeParents(

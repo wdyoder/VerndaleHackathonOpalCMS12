@@ -1,7 +1,7 @@
 meta:
   app_id: verndale_hackathon_opal_cms12
   display_name: Verndale Hackathon Opal Cms12
-  version: 1.0.0-dev.21
+  version: 1.0.0-dev.22
   vendor: verndale
   summary: An example of an Opal Tool that connects to CMS 12 and assists with page creation.
   support_url: https://www.verndale.com
