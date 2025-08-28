@@ -66,6 +66,18 @@ const discoveryPayload = {
           required: false,
         },
         {
+          name: 'maxDepth',
+          type: 'number',
+          description: 'Depth to traverse when discovering content structure (default: 2).',
+          required: false,
+        },
+        {
+          name: 'maxNodes',
+          type: 'number',
+          description: 'Total node limit during traversal to keep requests bounded (default: 50).',
+          required: false,
+        },
+        {
           name: 'language',
           type: 'string',
           description: 'Language name (default: en).',
@@ -338,6 +350,8 @@ export class OptiCMSContentManagementAPIToolFunction extends Function {
   private async getStructureSnapshot(
     credentials: Credentials,
     root?: string,
+    maxDepth = 2,
+    maxNodes = 50,
   ): Promise<Record<string, unknown>> {
     const authHeaders = this.buildAuthHeaders(credentials);
     if (!root) {
@@ -352,7 +366,7 @@ export class OptiCMSContentManagementAPIToolFunction extends Function {
           res.url || `${credentials.cms_base_url}/api/episerver/v3.0/contentstructure/1`;
         const match = redirected.match(/contentstructure\/([^/?#]+)/);
         const fallbackRoot = match ? decodeURIComponent(match[1]) : '1';
-        return this.getStructureSnapshot(credentials, fallbackRoot);
+        return this.getStructureSnapshot(credentials, fallbackRoot, maxDepth, maxNodes);
       } catch {
         return {};
       }
@@ -362,7 +376,30 @@ export class OptiCMSContentManagementAPIToolFunction extends Function {
     )}`;
     try {
       const res = await fetch(url, { method: 'GET', headers: authHeaders });
-      return (await res.json()) as Record<string, unknown>;
+      const top = (await res.json()) as Record<string, unknown>;
+      // BFS traversal to bounded depth and node count
+      const queue: Array<{ node: Record<string, unknown>; depth: number }> = [
+        { node: top, depth: 0 },
+      ];
+      const visited: Record<string, Record<string, unknown>> = {};
+      const outChildren: Array<Record<string, unknown>> = [];
+      let count = 0;
+      while (queue.length && count < maxNodes) {
+        const current = queue.shift()!;
+        const currentNode = current.node as any;
+        const nodeId: string = String(currentNode.id ?? currentNode.guidValue ?? Math.random());
+        if (visited[nodeId]) continue;
+        visited[nodeId] = currentNode;
+        count += 1;
+        const children: Array<Record<string, unknown>> = Array.isArray(currentNode.children)
+          ? (currentNode.children as Array<Record<string, unknown>>)
+          : [];
+        outChildren.push(...children);
+        if (current.depth < maxDepth) {
+          children.forEach((child) => queue.push({ node: child, depth: current.depth + 1 }));
+        }
+      }
+      return { ...top, children: outChildren } as Record<string, unknown>;
     } catch {
       return {};
     }
@@ -454,6 +491,8 @@ export class OptiCMSContentManagementAPIToolFunction extends Function {
     language?: string;
     status?: string;
     autoSelectParent?: boolean;
+    maxDepth?: number;
+    maxNodes?: number;
   }) {
     if (!parameters?.ask) {
       throw new Error("Missing required parameter 'ask'");
@@ -464,7 +503,12 @@ export class OptiCMSContentManagementAPIToolFunction extends Function {
     // Gather context
     const [types, structure] = await Promise.all([
       this.listAllContentTypes(credentials),
-      this.getStructureSnapshot(credentials, parameters.discoveryRoot),
+      this.getStructureSnapshot(
+        credentials,
+        parameters.discoveryRoot,
+        parameters.maxDepth ?? 2,
+        parameters.maxNodes ?? 50,
+      ),
     ]);
 
     // Pick best content type
